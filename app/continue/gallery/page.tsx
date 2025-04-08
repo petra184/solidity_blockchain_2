@@ -129,10 +129,10 @@ export default function Gallery() {
         <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-7xl">
           <div className="text-center mb-10">
             <h1 className="text-3xl md:text-4xl font-bold mb-3">Your Artwork Gallery</h1>
-            <p className="text-muted-foreground text-lg">Browse and explore your creative collection</p>
+            <p className="text-muted-foreground text-lg">Browse your collection</p>
           </div>
 
-          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-end gap-6 mb-10 bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-end gap-6 mb-10 rounded-lg">
             <div className="relative flex-grow max-w-md">
               <label htmlFor="searchArtwork" className="block text-sm font-medium text-muted-foreground mb-2">
                 Search:
@@ -143,7 +143,7 @@ export default function Gallery() {
                   type="text"
                   id="searchArtwork"
                   placeholder="Search by name..."
-                  className="w-full pl-9 pr-3 py-2.5 rounded-md border border-input bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring text-sm"
+                  className="w-full bg-white pl-9 pr-3 py-2.5 border-input rounded-md border border-gray-300 focus:outline-none focus:border-transparent text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -155,7 +155,7 @@ export default function Gallery() {
               </label>
               <select
                 id="sortBy"
-                className="w-full md:w-56 px-3 py-2.5 rounded-md border border-input bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-0.5 bg-center pr-8"
+                className="px-3 pr-15 bg-white py-2.5 rounded-md border border-gray-300 focus:outline-none focus:border-transparent"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
               >
@@ -173,7 +173,7 @@ export default function Gallery() {
               filteredArtworks.map((artwork) => (
                 <div
                   key={artwork.id}
-                  className="rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
+                  className="rounded-lg overflow-hidden bg-slate-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
                   onClick={() => openArtworkModal(artwork)}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -247,13 +247,7 @@ export default function Gallery() {
               </div>
               <div className="flex flex-col md:flex-row gap-4 justify-center">
                 <button
-                  className="flex items-center justify-center px-5 py-2.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 text-sm font-medium"
-                  onClick={downloadArtwork}
-                >
-                  <Download className="w-4 h-4 mr-2" /> Download
-                </button>
-                <button
-                  className="flex items-center justify-center px-5 py-2.5 rounded-md bg-secondary text-secondary-foreground hover:bg-muted text-sm font-medium"
+                  className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md bg-secondary font-medium"
                   onClick={sellArtwork}
                   disabled={selectedArtwork.forSale}
                 >
@@ -266,7 +260,7 @@ export default function Gallery() {
                   )}
                 </button>
                 <button
-                  className="flex items-center justify-center px-5 py-2.5 rounded-md bg-destructive text-destructive-foreground hover:opacity-90 text-sm font-medium"
+                  className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md bg-destructive text-destructive-foreground hover:opacity-90 text-sm font-medium"
                   onClick={deleteArtwork}
                 >
                   <Trash className="w-4 h-4 mr-2" /> Delete
