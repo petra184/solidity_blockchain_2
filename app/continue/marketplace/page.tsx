@@ -117,13 +117,13 @@ export default function Marketplace() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
             <a
               href="#marketplace"
-              className="flex items-center justify-center px-6 py-3 rounded bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
+              className="flex items-center text-white bg-blue-900 justify-center px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
             >
               <ShoppingBag className="w-5 h-5 mr-2" /> Browse Artwork
             </a>
             <Link
               href="/continue/draw"
-              className="flex items-center justify-center px-6 py-3 rounded border border-border bg-transparent hover:bg-secondary text-base font-medium"
+              className="flex items-center justify-center px-6 py-3 rounded-xl text-white bg-orange-600 hover:bg-secondary text-base font-medium"
             >
               <PaintBrush className="w-5 h-5 mr-2" /> Create Art
             </Link>
@@ -138,7 +138,7 @@ export default function Marketplace() {
           <h2 className="text-3xl font-bold text-center mb-8">Browse Categories</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <a
-              href="#"
+              href="#marketplace"
               className="block rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
             >
               <div className="relative aspect-[4/3] overflow-hidden">
@@ -155,7 +155,7 @@ export default function Marketplace() {
               </div>
             </a>
             <a
-              href="#"
+              href="#marketplace"
               className="block rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
             >
               <div className="relative aspect-[4/3] overflow-hidden">
@@ -172,7 +172,7 @@ export default function Marketplace() {
               </div>
             </a>
             <a
-              href="#"
+              href="#marketplace"
               className="block rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
             >
               <div className="relative aspect-[4/3] overflow-hidden">
@@ -189,7 +189,7 @@ export default function Marketplace() {
               </div>
             </a>
             <a
-              href="#"
+              href="#marketplace"
               className="block rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
             >
               <div className="relative aspect-[4/3] overflow-hidden">
@@ -221,7 +221,7 @@ export default function Marketplace() {
                 <input
                   type="text"
                   id="search-input"
-                  className="w-full pl-9 pr-3 py-2 rounded border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring text-sm"
+                  className="w-full pl-9 pr-3 py-2  rounded-md border border-gray-300 focus:outline-none focus:border-transparent"
                   placeholder="Search artwork or artist..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -234,7 +234,7 @@ export default function Marketplace() {
               </label>
               <select
                 id="category-filter"
-                className="w-full px-3 py-2 rounded border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-0.5 bg-center pr-8"
+                className="w-full px-3 py-2  rounded-md border border-gray-300 focus:outline-none focus:border-transparent"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
@@ -251,7 +251,7 @@ export default function Marketplace() {
               </label>
               <select
                 id="price-filter"
-                className="w-full px-3 py-2 rounded border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-0.5 bg-center pr-8"
+                className="w-full px-3 py-2  rounded-md border border-gray-300 focus:outline-none focus:border-transparent"
                 value={priceFilter}
                 onChange={(e) => setPriceFilter(e.target.value)}
               >
@@ -268,7 +268,7 @@ export default function Marketplace() {
               </label>
               <select
                 id="sort-filter"
-                className="w-full px-3 py-2 rounded border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-0.5 bg-center pr-8"
+                className="w-full px-3 py-2  rounded-md border border-gray-300 focus:outline-none focus:border-transparent"
                 value={sortFilter}
                 onChange={(e) => setSortFilter(e.target.value)}
               >
@@ -285,7 +285,7 @@ export default function Marketplace() {
               filteredItems.map((artwork) => (
                 <div
                   key={artwork.id}
-                  className="rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col h-full"
+                  className="rounded-lg overflow-hidden bg-slate-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col h-full"
                   onClick={() => openModal(artwork)}
                 >
                   <div className="relative aspect-square overflow-hidden">
@@ -311,7 +311,7 @@ export default function Marketplace() {
                   </div>
                   <div className="px-5 pb-5 pt-0">
                     <button
-                      className="w-full flex items-center justify-center px-4 py-2 rounded bg-primary text-primary-foreground hover:opacity-90 text-sm font-medium"
+                      className="w-full flex items-center justify-center rounded-xl px-4 py-2 text-white bg-purple-700 text-primary-foreground hover:opacity-90 text-sm font-medium"
                       onClick={(e) => {
                         e.stopPropagation()
                         setNotification({
@@ -349,7 +349,7 @@ export default function Marketplace() {
           </p>
           <Link
             href="/draw"
-            className="inline-flex items-center justify-center px-6 py-3 rounded bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-xl text-white bg-orange-600 bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
           >
             <PaintBrush className="w-5 h-5 mr-2" /> Create Art
           </Link>
@@ -388,7 +388,7 @@ export default function Marketplace() {
               </div>
               <div className="flex justify-center">
                 <button
-                  className="flex items-center justify-center px-6 py-3 rounded bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
+                  className="flex items-center justify-center px-6 py-2 bg-purple-700 text-white rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
                   onClick={handleBuyArtwork}
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" /> Buy Now

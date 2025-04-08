@@ -9,12 +9,8 @@ import {
   Trash2,
   Save,
   Paintbrush,
-  Circle,
-  Square,
-  Minus,
   Palette,
   SlidersHorizontal,
-  Layers,
   ImagePlus,
 } from "lucide-react"
 import Navbar from "@/components/navbar"
@@ -207,19 +203,19 @@ export default function DrawPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary-light/30 via-white to-primary-light/30">
+    <div className="min-h-screen">
       <Navbar />
       <main className="py-8">
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Create Your Art</h1>
+            <h1 className="text-3xl font-bold mb-2">Create Your <span className="text-orange-400">Art</span></h1>
             <p className="text-muted-foreground">Express yourself through digital art and share your creations</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+          <div className="bg-transparent overflow-hidden mb-8">
             <div className="flex flex-col md:flex-row">
               {/* Left Sidebar - Tools */}
-              <div className="w-full md:w-64 bg-slate-50 p-4 border-r border-border">
+              <div className="w-full md:w-64 rounded-tr-xl rounded-tl-xl bg-slate-50 p-4">
                 <div className="space-y-6">
                   {/* Drawing Tools */}
                   <div>
@@ -227,7 +223,7 @@ export default function DrawPage() {
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
-                        className={`flex flex-col items-center justify-center p-3 rounded-lg ${
+                        className={`flex flex-col items-center justify-center bg-[#dad4d42a] p-3 rounded-lg ${
                           tool === "brush" && !isEraser
                             ? "bg-primary/10 text-primary ring-1 ring-primary/30"
                             : "hover:bg-slate-100"
@@ -240,7 +236,7 @@ export default function DrawPage() {
                       </button>
                       <button
                         type="button"
-                        className={`flex flex-col items-center justify-center p-3 rounded-lg ${
+                        className={`flex flex-col items-center bg-[#dad4d42a] justify-center p-3 rounded-lg ${
                           isEraser ? "bg-primary/10 text-primary ring-1 ring-primary/30" : "hover:bg-slate-100"
                         }`}
                         onClick={() => setDrawingTool("eraser")}
@@ -248,45 +244,10 @@ export default function DrawPage() {
                       >
                         <Eraser className="w-5 h-5 mb-1" />
                         <span className="text-xs">Eraser</span>
-                      </button>
+                      </button>       
                       <button
                         type="button"
-                        className={`flex flex-col items-center justify-center p-3 rounded-lg ${
-                          tool === "line" ? "bg-primary/10 text-primary ring-1 ring-primary/30" : "hover:bg-slate-100"
-                        }`}
-                        onClick={() => setDrawingTool("line")}
-                        title="Line"
-                      >
-                        <Minus className="w-5 h-5 mb-1" />
-                        <span className="text-xs">Line</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`flex flex-col items-center justify-center p-3 rounded-lg ${
-                          tool === "circle" ? "bg-primary/10 text-primary ring-1 ring-primary/30" : "hover:bg-slate-100"
-                        }`}
-                        onClick={() => setDrawingTool("circle")}
-                        title="Circle"
-                      >
-                        <Circle className="w-5 h-5 mb-1" />
-                        <span className="text-xs">Circle</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`flex flex-col items-center justify-center p-3 rounded-lg ${
-                          tool === "rectangle"
-                            ? "bg-primary/10 text-primary ring-1 ring-primary/30"
-                            : "hover:bg-slate-100"
-                        }`}
-                        onClick={() => setDrawingTool("rectangle")}
-                        title="Rectangle"
-                      >
-                        <Square className="w-5 h-5 mb-1" />
-                        <span className="text-xs">Rectangle</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="flex flex-col items-center justify-center p-3 rounded-lg hover:bg-slate-100"
+                        className="flex flex-col items-center justify-center p-3 rounded-lg bg-[#dad4d42a] hover:bg-slate-100"
                         onClick={clearCanvas}
                         title="Clear Canvas"
                       >
@@ -311,7 +272,7 @@ export default function DrawPage() {
 
                     <div className="flex items-center gap-3 mb-2">
                       <div
-                        className="w-10 h-10 rounded-full border border-slate-200 shadow-sm"
+                        className="w-13 h-10 rounded-full border border-slate-200 shadow-sm"
                         style={{ backgroundColor: color }}
                       ></div>
                       <input
@@ -321,7 +282,7 @@ export default function DrawPage() {
                           setColor(e.target.value)
                           if (isEraser) setIsEraser(false)
                         }}
-                        className="w-full h-10 cursor-pointer"
+                        className=" w-full rounded-full "
                       />
                     </div>
 
@@ -343,7 +304,7 @@ export default function DrawPage() {
 
                   {/* Brush Settings */}
                   <div>
-                    <div className="flex justify-between items-center mb-3">
+                    <div className=" margin-top-4 flex justify-between items-center mb-3">
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                         Brush Settings
                       </h3>
@@ -371,21 +332,6 @@ export default function DrawPage() {
                           className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer"
                         />
                       </div>
-
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <label className="text-xs text-muted-foreground">Opacity: {opacity}%</label>
-                          <span className="text-xs text-muted-foreground">{opacity}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="1"
-                          max="100"
-                          value={opacity}
-                          onChange={(e) => setOpacity(Number.parseInt(e.target.value))}
-                          className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer"
-                        />
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -393,19 +339,7 @@ export default function DrawPage() {
 
               {/* Main Canvas Area */}
               <div className="flex-1 flex flex-col">
-                <div className="flex justify-between items-center p-4 border-b border-border bg-slate-50">
-                  <div className="flex items-center gap-2"></div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center justify-center px-3 py-2 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm"
-                    >
-                      <Layers className="w-4 h-4 mr-1" /> Layers
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 bg-slate-200 p-4 flex items-center justify-center">
+                <div className="flex-1 pb-4 pl-4 flex items-center justify-center">
                   <canvas
                     id="drawCanvas"
                     ref={canvasRef}
@@ -432,7 +366,7 @@ export default function DrawPage() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-border bg-white">
+            <div className="p-6 rounded-bl-xl rounded-br-xl rounded-tr-xl bg-slate-50">
               <div className="flex flex-wrap gap-5 mb-5">
                 <div className="flex flex-col gap-2 min-w-[200px] flex-1">
                   <label htmlFor="drawingName" className="text-sm font-medium text-gray-700">
@@ -444,7 +378,7 @@ export default function DrawPage() {
                     placeholder="Name your artwork"
                     value={drawingName}
                     onChange={(e) => setDrawingName(e.target.value)}
-                    className="px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
+                    className="px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:border-transparent text-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-2 min-w-[200px] flex-1">
@@ -455,7 +389,7 @@ export default function DrawPage() {
                     id="drawingCategory"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-4 bg-[length:16px] pr-10"
+                    className="px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:border-transparent"
                   >
                     <option value="digital-painting">Digital Painting</option>
                     <option value="abstract">Abstract</option>
@@ -478,7 +412,7 @@ export default function DrawPage() {
                     placeholder="Set a price"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    className="px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
+                    className="px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:border-transparent text-sm"
                   />
                 </div>
               </div>
@@ -486,14 +420,14 @@ export default function DrawPage() {
                 <button
                   type="button"
                   id="saveDrawing"
-                  className="flex items-center justify-center px-6 py-3 rounded-md bg-primary text-white hover:bg-primary/90 text-sm font-medium shadow-sm"
+                  className="flex items-center justify-center px-6 py-3 rounded-xl bg-[#7c29d3] text-white hover:bg-[#4e2f70] text-sm font-medium shadow-sm"
                   onClick={saveDrawing}
                 >
                   <Save className="w-4 h-4 mr-2" /> Save Artwork
                 </button>
                 <button
                   type="button"
-                  className="flex items-center justify-center px-6 py-3 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium shadow-sm"
+                  className="flex items-center justify-center px-6 py-3 rounded-xl bg-orange-600 text-white hover:bg-orange-800 text-sm font-medium shadow-sm"
                   onClick={() => {
                     saveDrawing()
                     setNotification({
