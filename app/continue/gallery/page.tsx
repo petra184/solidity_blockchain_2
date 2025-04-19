@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import Notification from "@/components/notification"
-import type { Artwork } from "@/app/types/artwork"
-import { Download, Tag, Trash, ImageIcon, Search } from "lucide-react"
+import type { Artwork, Web3StorageFile } from "@/app/types/artwork"
+import { Tag, Trash, ImageIcon, Search, Edit, ExternalLink, Loader2 } from "lucide-react"
 import Navbar from "@/components/navbar"
 
 export default function Gallery() {
+  const router = useRouter()
   const [artworks, setArtworks] = useState<Artwork[]>([])
   const [filteredArtworks, setFilteredArtworks] = useState<Artwork[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -15,12 +17,68 @@ export default function Gallery() {
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [notification, setNotification] = useState({ message: "", type: "success" as "success" | "error" })
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Load artworks from localStorage
+  // Load artworks from both localStorage and Web3 storage
   useEffect(() => {
-    const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]")
-    setArtworks(storedArtworks)
-    setFilteredArtworks(storedArtworks)
+    async function loadArtworks() {
+      setIsLoading(true)
+      try {
+        // Load from localStorage first
+        const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]") as Artwork[]
+
+        // Then fetch from Web3 storage
+        const response = await fetch("/api/get-images")
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch images from Web3 storage")
+        }
+
+        const web3Images = (await response.json()) as Web3StorageFile[]
+
+        // Merge the two sources, avoiding duplicates
+        // This assumes that Web3 images have a unique CID
+        const mergedArtworks = [...storedArtworks]
+
+        // Add Web3 images that aren't already in localStorage
+        web3Images.forEach((web3Image) => {
+          // Check if this image is already in localStorage
+          const exists = storedArtworks.some((artwork) => artwork.cid === web3Image.cid)
+
+          if (!exists) {
+            mergedArtworks.push({
+              id: web3Image.cid,
+              name: web3Image.name || 'Untitled Artwork",e || "Untitled Artwork',
+              dataURL: "", // No local data URL
+              ipfsUrl: web3Image.url,
+              cid: web3Image.cid,
+              date: web3Image.created || new Date().toISOString(),
+              category: "digital-painting", // Default category
+              price: 0,
+              forSale: false,
+            })
+          }
+        })
+
+        setArtworks(mergedArtworks)
+        setFilteredArtworks(mergedArtworks)
+      } catch (error) {
+        console.error("Error loading artworks:", error)
+        setNotification({
+          message: "Failed to load some artworks from Web3 storage",
+          type: "error",
+        })
+
+        // Still load from localStorage if Web3 fails
+        const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]")
+        setArtworks(storedArtworks)
+        setFilteredArtworks(storedArtworks)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadArtworks()
   }, [])
 
   // Filter and sort artworks when search or sort changes
@@ -67,20 +125,30 @@ export default function Gallery() {
   const downloadArtwork = () => {
     if (!selectedArtwork) return
 
-    const link = document.createElement("a")
-    link.download = `${selectedArtwork.name}.png`
-    link.href = selectedArtwork.dataURL
-    link.click()
+    // If we have a local dataURL, use that
+    if (selectedArtwork.dataURL) {
+      const link = document.createElement("a")
+      link.download = `${selectedArtwork.name}.png`
+      link.href = selectedArtwork.dataURL
+      link.click()
+    }
+    // Otherwise, if we have an IPFS URL, open it in a new tab
+    else if (selectedArtwork.ipfsUrl) {
+      window.open(selectedArtwork.ipfsUrl, "_blank")
+    }
   }
 
   const deleteArtwork = () => {
     if (!selectedArtwork) return
 
+    // Only remove from localStorage - we can't delete from IPFS
     const updatedArtworks = artworks.filter((a) => a.id !== selectedArtwork.id)
-    localStorage.setItem("artworks", JSON.stringify(updatedArtworks))
+    localStorage.setItem("artworks", JSON.stringify(updatedArtworks.filter((a) => !a.ipfsUrl)))
 
     setNotification({
-      message: "Artwork deleted successfully",
+      message: selectedArtwork.ipfsUrl
+        ? "Artwork removed from gallery (but still exists on IPFS)"
+        : "Artwork deleted successfully",
       type: "success",
     })
 
@@ -91,7 +159,7 @@ export default function Gallery() {
   const sellArtwork = () => {
     if (!selectedArtwork) return
 
-    const price = prompt("Enter the price for your artwork ($):", "50")
+    const price = prompt("Enter the price for your artwork (ETH):", "0.1")
     if (price === null) return
 
     const priceValue = Number.parseFloat(price)
@@ -111,7 +179,8 @@ export default function Gallery() {
       return a
     })
 
-    localStorage.setItem("artworks", JSON.stringify(updatedArtworks))
+    // Only update localStorage for local artworks
+    localStorage.setItem("artworks", JSON.stringify(updatedArtworks.filter((a) => !a.ipfsUrl)))
 
     setNotification({
       message: "Artwork listed for sale successfully",
@@ -122,14 +191,34 @@ export default function Gallery() {
     closeModal()
   }
 
+  const editArtwork = () => {
+    if (!selectedArtwork) return
+
+    // Can only edit local artworks, not those from IPFS
+    if (selectedArtwork.ipfsUrl && !selectedArtwork.dataURL) {
+      setNotification({
+        message: "Cannot edit artworks stored on IPFS. You can only edit local artworks.",
+        type: "error",
+      })
+      return
+    }
+
+    // Store the artwork to edit in localStorage
+    localStorage.setItem("artworkToEdit", JSON.stringify(selectedArtwork))
+
+    // Navigate to the draw page
+    router.push("/continue/draw")
+    closeModal()
+  }
+
   return (
     <div className="min-h-screen">
-      <Navbar/>
+      <Navbar />
       <main className="py-12">
         <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-7xl">
           <div className="text-center mb-10">
             <h1 className="text-3xl md:text-4xl font-bold mb-3">Your Artwork Gallery</h1>
-            <p className="text-muted-foreground text-lg">Browse your collection</p>
+            <p className="text-muted-foreground text-lg">Browse your collection from local storage and IPFS</p>
           </div>
 
           <div className="flex flex-col md:flex-row justify-between items-stretch md:items-end gap-6 mb-10 rounded-lg">
@@ -168,45 +257,71 @@ export default function Gallery() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-            {filteredArtworks.length > 0 ? (
-              filteredArtworks.map((artwork) => (
-                <div
-                  key={artwork.id}
-                  className="rounded-lg overflow-hidden bg-slate-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
-                  onClick={() => openArtworkModal(artwork)}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={artwork.dataURL || "/placeholder.svg"}
-                    alt={artwork.name}
-                    className="w-full aspect-square object-cover"
-                  />
-                  <div className="p-5">
-                    <h3 className="text-base font-semibold mb-2">{artwork.name}</h3>
-                    <p className="text-xs text-muted-foreground mb-2">{new Date(artwork.date).toLocaleDateString()}</p>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Category: {artwork.category.charAt(0).toUpperCase() + artwork.category.slice(1)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Price: {artwork.price > 0 ? `$${artwork.price.toFixed(2)}` : "Not for sale"}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center text-center p-16 border border-dashed border-border rounded-lg text-muted-foreground">
-                <ImageIcon className="w-16 h-16 mb-6 opacity-50" />
-                <p className="mb-6 text-lg">Your gallery is empty. Start creating some artwork!</p>
-                <Link
-                  href="/draw"
-                  className="flex items-center justify-center px-6 py-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
-                >
-                  Create Artwork
-                </Link>
+          {isLoading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                <p className="text-muted-foreground">Loading your artwork from IPFS...</p>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+              {filteredArtworks.length > 0 ? (
+                filteredArtworks.map((artwork) => (
+                  <div
+                    key={artwork.id}
+                    className="rounded-lg overflow-hidden bg-slate-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
+                    onClick={() => openArtworkModal(artwork)}
+                  >
+                    <div className="relative aspect-square">
+                      <img
+                        src={artwork.ipfsUrl || artwork.dataURL || "/placeholder.svg"}
+                        alt={artwork.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback if image fails to load
+                          e.currentTarget.src = "/placeholder.svg"
+                        }}
+                      />
+                      {artwork.ipfsUrl && (
+                        <div className="absolute top-2 right-2 bg-primary text-white text-xs px-2 py-1 rounded-full">
+                          IPFS
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-base font-semibold mb-2">{artwork.name}</h3>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {new Date(artwork.date).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Category: {artwork.category.charAt(0).toUpperCase() + artwork.category.slice(1)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Price: {artwork.price > 0 ? `${artwork.price.toFixed(2)} ETH` : "Not for sale"}
+                      </p>
+                      {artwork.cid && (
+                        <p className="text-xs text-muted-foreground mt-2 truncate">
+                          CID: {artwork.cid.substring(0, 10)}...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full flex flex-col items-center justify-center text-center p-16 border border-dashed border-border rounded-lg text-muted-foreground">
+                  <ImageIcon className="w-16 h-16 mb-6 opacity-50" />
+                  <p className="mb-6 text-lg">Your gallery is empty. Start creating some artwork!</p>
+                  <Link
+                    href="/draw"
+                    className="flex items-center justify-center px-6 py-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
+                  >
+                    Create Artwork
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -234,36 +349,62 @@ export default function Gallery() {
               <p className="text-sm text-muted-foreground mb-2">
                 Category: {selectedArtwork.category.charAt(0).toUpperCase() + selectedArtwork.category.slice(1)}
               </p>
-              <p className="text-sm text-muted-foreground mb-6">
-                Price: {selectedArtwork.price > 0 ? `$${selectedArtwork.price.toFixed(2)}` : "Not for sale"}
+              <p className="text-sm text-muted-foreground mb-2">
+                Price: {selectedArtwork.price > 0 ? `${selectedArtwork.price.toFixed(2)} ETH` : "Not for sale"}
               </p>
+              {selectedArtwork.cid && (
+                <p className="text-sm text-muted-foreground mb-6">
+                  Stored on IPFS: <span className="font-mono text-xs">{selectedArtwork.cid}</span>
+                </p>
+              )}
               <div className="rounded-lg overflow-hidden shadow-md mb-8">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={selectedArtwork.dataURL || "/placeholder.svg"}
+                  src={selectedArtwork.ipfsUrl || selectedArtwork.dataURL || "/placeholder.svg"}
                   alt={selectedArtwork.name}
                   className="w-full h-auto"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    e.currentTarget.src = "/placeholder.svg"
+                  }}
                 />
               </div>
-              <div className="flex flex-col md:flex-row gap-4 justify-center">
+              <div className="flex flex-wrap gap-4 justify-center">
+                {!selectedArtwork.ipfsUrl && (
+                  <button
+                    className="flex items-center bg-blue-600 text-white hover:bg-blue-700 justify-center px-5 py-2.5 rounded-md font-medium"
+                    onClick={editArtwork}
+                  >
+                    <Edit className="w-4 h-4 mr-2" /> Continue Editing
+                  </button>
+                )}
                 <button
-                  className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md bg-secondary font-medium"
+                  className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md font-medium"
                   onClick={sellArtwork}
                   disabled={selectedArtwork.forSale}
                 >
                   {selectedArtwork.forSale ? (
-                    `Listed for $${selectedArtwork.price.toFixed(2)}`
+                    `Listed for ${selectedArtwork.price.toFixed(2)} ETH`
                   ) : (
                     <>
                       <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
                     </>
                   )}
                 </button>
+                {selectedArtwork.ipfsUrl && (
+                  <a
+                    href={selectedArtwork.ipfsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center bg-blue-600 text-white hover:bg-blue-700 justify-center px-5 py-2.5 rounded-md font-medium"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" /> View on IPFS
+                  </a>
+                )}
                 <button
-                  className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md bg-destructive text-destructive-foreground hover:opacity-90 text-sm font-medium"
+                  className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
                   onClick={deleteArtwork}
                 >
-                  <Trash className="w-4 h-4 mr-2" /> Delete
+                  <Trash className="w-4 h-4 mr-2" /> {selectedArtwork.ipfsUrl ? "Remove" : "Delete"}
                 </button>
               </div>
             </div>

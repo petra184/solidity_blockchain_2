@@ -51,4 +51,15 @@ contract ArtNFT is ERC721, Ownable {
     function totalSupply() external view returns (uint256) {
         return nextTokenId;
     }
+    
+    mapping(uint256 => string) private _tokenURIs;
+
+    function setTokenURI(uint256 tokenId, string memory uri) external {
+        require(ownerOf(tokenId) == msg.sender, "Not your art");
+        _tokenURIs[tokenId] = uri;
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        return _tokenURIs[tokenId];
+    }
 }

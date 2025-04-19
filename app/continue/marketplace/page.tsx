@@ -7,6 +7,7 @@ import Notification from "@/components/notification"
 import type { Artwork } from "@/app/types/artwork"
 import { ShoppingBag, PaintbrushIcon as PaintBrush, Search, ShoppingCart } from "lucide-react"
 import Navbar from "@/components/navbar"
+import { fetchOnChainArtworks } from "@/app/utils/get_art"
 
 export default function Marketplace() {
   const [marketplaceItems, setMarketplaceItems] = useState<Artwork[]>([])
@@ -20,11 +21,38 @@ export default function Marketplace() {
   const [notification, setNotification] = useState({ message: "", type: "success" as "success" | "error" })
 
   // Load marketplace items from localStorage
+  // useEffect(() => {
+  //   const artworks = JSON.parse(localStorage.getItem("artworks") || "[]")
+  //   const forSaleArtworks = artworks.filter((artwork: Artwork) => artwork.forSale)
+  //   setMarketplaceItems(forSaleArtworks)
+  //   setFilteredItems(forSaleArtworks)
+  // }, [])
+
   useEffect(() => {
-    const artworks = JSON.parse(localStorage.getItem("artworks") || "[]")
-    const forSaleArtworks = artworks.filter((artwork: Artwork) => artwork.forSale)
-    setMarketplaceItems(forSaleArtworks)
-    setFilteredItems(forSaleArtworks)
+    const loadArtworks = async () => {
+      try {
+        const onChainArtworks = await fetchOnChainArtworks()
+
+        // Map the blockchain artworks to your Artwork type format
+        const formattedArtworks = onChainArtworks.map((art, index) => ({
+          id: art.tokenId.toString(),
+          name: art.name,
+          category: art.category,
+          price: art.price,
+          dataURL: art.dataURL, // This should be the image URL from IPFS
+          forSale: art.forSale,
+          date: art.date,
+          ipfsUrl: art.ipfsUrl,
+        }))
+
+        setMarketplaceItems(formattedArtworks)
+        setFilteredItems(formattedArtworks)
+      } catch (error) {
+        console.error("Error loading artworks:", error)
+      }
+    }
+
+    loadArtworks()
   }, [])
 
   // Filter items when filters change
@@ -95,17 +123,73 @@ export default function Marketplace() {
     setSelectedArtwork(null)
   }
 
-  const handleBuyArtwork = () => {
-    setNotification({
-      message: "Purchase functionality will be implemented with your backend",
-      type: "success",
-    })
-    closeModal()
-  }
+  // Remove these lines:
+  // const [artworks, setArtworks] = useState([]);
+
+  // useEffect(() => {
+  //   const load = async () => {
+  //     const items = await get_art();
+  //     setArtworks(items);
+  //   };
+
+  //   load();
+  // }, []);
+
+  // const handleBuyArtwork = () => {
+  //   setNotification({
+  //     message: "Purchase functionality will be implemented with your backend",
+  //     type: "success",
+  //   })
+  //   closeModal()
+  // }
+  //    const CONTRACT_ADDRESS = "0x8d2FF5C2D7e1402fA52FA604fB87B7E7d8aeB59E"
+  //    const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/YOUR_INFURA_KEY")
+
+  //    const toHttpUrl = (ipfsUrl: string) => ipfsUrl.replace("ipfs://", "https://ipfs.io/ipfs/")
+
+  //  useEffect(() => {
+  //   const fetchMarketplaceNFTs = async () => {
+  //     try {
+  //       const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFTABI, provider)
+
+  //       const total = await contract.totalSupply()
+  //       const items = []
+
+  //       for (let i = 0; i < total; i++) {
+  //         const owner = await contract.ownerOf(i)
+  //         const price = await contract.prices(i)
+  //         const isForSale = price.gt(0)
+
+  //         if (!isForSale) continue
+
+  //         const tokenUri = await contract.tokenURI(i)
+  //         const metadataRes = await fetch(toHttpUrl(tokenUri))
+  //         const metadata = await metadataRes.json()
+
+  //         items.push({
+  //           id: i,
+  //           name: metadata.name,
+  //           image: toHttpUrl(metadata.image),
+  //           price: parseFloat(ethers.utils.formatEther(price)),
+  //           category: metadata.category || "uncategorized",
+  //           date: metadata.date || new Date().toISOString(),
+  //           creator: owner,
+  //           forSale: true,
+  //         })
+  //       }
+
+  //       setMarketplaceItems(items)
+  //     } catch (err) {
+  //       console.error("Error fetching NFTs", err)
+  //     }
+  //   }
+
+  //   fetchMarketplaceNFTs()
+  // }, [])
 
   return (
     <>
-    <Navbar />
+      <Navbar />
       <div className="relative overflow-hidden bg-gradient-to-br from-primary-light to-white via-white py-20">
         <div className="container mx-auto px-6 md:px-8 text-center max-w-3xl relative z-10">
           <h1 className="text-4xl md:text-5xl font-bold mb-6">
@@ -331,12 +415,6 @@ export default function Marketplace() {
                   <ShoppingBag className="w-10 h-10 mx-auto" />
                 </div>
                 <p className="mb-4">No artwork available in the marketplace</p>
-                <Link
-                  href="/draw"
-                  className="flex items-center justify-center px-4 py-2 rounded bg-primary text-primary-foreground hover:opacity-90 text-sm font-medium"
-                >
-                  Create and sell your art
-                </Link>
               </div>
             )}
           </div>
@@ -348,7 +426,7 @@ export default function Marketplace() {
             Join our community of artists and start selling your creations today
           </p>
           <Link
-            href="/draw"
+            href="/continue/draw"
             className="inline-flex items-center justify-center px-6 py-3 rounded-xl text-white bg-orange-600 bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
           >
             <PaintBrush className="w-5 h-5 mr-2" /> Create Art
@@ -389,7 +467,7 @@ export default function Marketplace() {
               <div className="flex justify-center">
                 <button
                   className="flex items-center justify-center px-6 py-2 bg-purple-700 text-white rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
-                  onClick={handleBuyArtwork}
+                  onClick={closeModal}
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" /> Buy Now
                 </button>
