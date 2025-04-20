@@ -27,7 +27,7 @@ export default function DrawPage() {
   const [tool, setTool] = useState<"brush" | "eraser" | "line" | "circle" | "rectangle">("brush")
   const [isUploading, setIsUploading] = useState(false)
 
-  const CONTRACT_ADDRESS = "0xE1A7e60d1728EFe9735355A57BAb3D40965332AE"
+  const CONTRACT_ADDRESS = "0xBc84172d0f92F244202906622B1757C66FAB82E3"
 
 
   // Predefined color palette

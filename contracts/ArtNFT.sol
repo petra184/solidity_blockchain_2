@@ -8,18 +8,24 @@ contract ArtNFT is ERC721, Ownable {
     uint256 public nextTokenId;
     mapping(uint256 => uint256) public prices;
     mapping(address => uint256) public earnings;
+    mapping(uint256 => string) private _tokenURIs;
 
     constructor() ERC721("ArtNFT", "ART") Ownable(msg.sender) {}
 
     event ArtMinted(address indexed creator, uint256 tokenId);
     event ArtSold(address indexed buyer, uint256 tokenId, uint256 price);
 
-    function mint() external returns (uint256) {
+    function mint(string memory uri) external returns (uint256) {
         uint256 tokenId = nextTokenId;
         _mint(msg.sender, tokenId);
+        _tokenURIs[tokenId] = uri;
         nextTokenId++;
         emit ArtMinted(msg.sender, tokenId);
         return tokenId;
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        return _tokenURIs[tokenId];
     }
 
     function listForSale(uint256 tokenId, uint256 price) external {
@@ -47,19 +53,7 @@ contract ArtNFT is ERC721, Ownable {
         payable(msg.sender).transfer(amount);
     }
 
-    // Add the totalSupply function here
     function totalSupply() external view returns (uint256) {
         return nextTokenId;
-    }
-    
-    mapping(uint256 => string) private _tokenURIs;
-
-    function setTokenURI(uint256 tokenId, string memory uri) external {
-        require(ownerOf(tokenId) == msg.sender, "Not your art");
-        _tokenURIs[tokenId] = uri;
-    }
-
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        return _tokenURIs[tokenId];
     }
 }
