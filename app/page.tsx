@@ -46,7 +46,7 @@ export default function MetaMaskSignIn() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 to-white p-4">
+    <div className="flex min-h-screen items-center justify-center  p-4">
       <div className="w-full max-w-md rounded-lg border border-purple-200 bg-white p-6 shadow-lg">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-purple-700">Sign in with MetaMask</h1>
