@@ -3,17 +3,10 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import Notification from "@/components/notification"
-import type { Artwork } from "@/app/types/artwork"
-import {
-  Eraser,
-  Trash2,
-  Save,
-  Paintbrush,
-  Palette,
-  SlidersHorizontal,
-  ImagePlus,
-} from "lucide-react"
+import { Eraser, Trash2, Save, Paintbrush, Palette, SlidersHorizontal, ImagePlus, Loader2 } from "lucide-react"
 import Navbar from "@/components/navbar"
+import { ethers } from "ethers"
+import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
 
 export default function DrawPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -32,7 +25,10 @@ export default function DrawPage() {
   const [showColorPalette, setShowColorPalette] = useState(false)
   const [showBrushSettings, setShowBrushSettings] = useState(false)
   const [tool, setTool] = useState<"brush" | "eraser" | "line" | "circle" | "rectangle">("brush")
-  const [opacity, setOpacity] = useState(100)
+  const [isUploading, setIsUploading] = useState(false)
+
+  const CONTRACT_ADDRESS = "0xBc84172d0f92F244202906622B1757C66FAB82E3"
+
 
   // Predefined color palette
   const colorPalette = [
@@ -161,54 +157,168 @@ export default function DrawPage() {
     ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height)
   }
 
-  const saveDrawing = () => {
+  // Update the saveDrawing function to better handle API responses and store Web3 data
+  const saveToGallery = () => {
     if (!canvasRef.current) return
 
     const name = drawingName.trim() || "Untitled Artwork"
-    const artworkPrice = Number.parseFloat(price) || 0
-    const forSale = artworkPrice > 0
+
+    // Format category with spaces instead of hyphens
+    const formattedCategory = category.replace(/-/g, " ")
 
     // Convert canvas to data URL
     const dataURL = canvasRef.current.toDataURL("image/png")
 
     // Create artwork object
-    const artwork: Artwork = {
-      id: Date.now().toString(),
+    const artwork = {
+      id: `artwork-${Date.now()}`,
       name,
-      category,
+      category: formattedCategory,
       dataURL,
       date: new Date().toISOString(),
-      forSale,
-      price: artworkPrice,
+      forSale: false,
+      price: 0,
     }
 
     // Get existing artworks from localStorage
-    const artworks = JSON.parse(localStorage.getItem("artworks") || "[]")
+    const existingArtworks = JSON.parse(localStorage.getItem("artworks") || "[]")
 
     // Add new artwork
-    artworks.push(artwork)
+    existingArtworks.push(artwork)
 
     // Save to localStorage
-    localStorage.setItem("artworks", JSON.stringify(artworks))
+    localStorage.setItem("artworks", JSON.stringify(existingArtworks))
 
-    // Show notification
     setNotification({
-      message: `"${name}" saved successfully!`,
+      message: `"${name}" saved to gallery successfully!`,
       type: "success",
     })
-
-    // Reset drawing name and price
-    setDrawingName("")
-    setPrice("")
   }
 
+  // Update the saveDrawing function to better handle API responses and store Web3 data
+  const saveDrawing = async () => {
+    if (!canvasRef.current) return;
+  
+    setIsUploading(true);
+    setNotification({ message: "", type: "success" });
+  
+    try {
+      // Convert canvas to image blob
+      const canvas = canvasRef.current;
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/png")
+      );
+      if (!blob) throw new Error("Failed to export drawing.");
+      const dataURL = canvas.toDataURL("image/png");
+  
+      // Prepare upload form
+      const formData = new FormData();
+      formData.append("file", blob, drawingName ? `${drawingName}.png` : "drawing.png");
+      formData.append("name", drawingName || "Untitled Artwork");
+      formData.append("category", category);
+      formData.append("price", price);
+  
+      // Upload to /api/upload to IPFS
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+  
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(`Received non-JSON response: ${await response.text()}`);
+      }
+  
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Upload failed");
+  
+      console.log("✅ Metadata uploaded to IPFS:", result.url);
+  
+      // MINT ON-CHAIN with IPFS metadata URL
+      if (!window.ethereum) throw new Error("No wallet found");
+  
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer);
+  
+      console.log("🖼 Minting NFT on Sepolia with metadata URL:", result.url);
+      
+      // Fix: Call mint with the URL as a string parameter
+      const tx = await contract.mint(result.url);
+      console.log("Transaction sent:", tx.hash);
+      
+      const receipt = await tx.wait();
+      console.log("Transaction confirmed");
+  
+      // Fix: In ethers.js v6, we need to parse logs differently
+      let tokenId;
+      
+      // Find the ArtMinted event in the logs
+      for (const log of receipt.logs) {
+        try {
+          // Try to parse each log with the contract interface
+          const parsedLog = contract.interface.parseLog({
+            topics: log.topics,
+            data: log.data
+          });
+          
+          // Check if this is the ArtMinted event
+          if (parsedLog && parsedLog.name === "ArtMinted") {
+            tokenId = parsedLog.args.tokenId.toString();
+            break;
+          }
+        } catch (e) {
+          // Skip logs that can't be parsed by this contract interface
+          continue;
+        }
+      }
+  
+      if (tokenId === undefined) throw new Error("Failed to get tokenId from transaction.");
+  
+      console.log("✅ NFT Minted! Token ID:", tokenId);
+  
+      // Save artwork locally with chain + IPFS info
+      const artwork = {
+        id: `artwork-${Date.now()}`,
+        tokenId: Number(tokenId),
+        name: drawingName || "Untitled Artwork",
+        dataURL,
+        date: new Date().toISOString(),
+        category: category.replace(/-/g, " "),
+        price: Number.parseFloat(price) || 0,
+        forSale: Number.parseFloat(price) > 0,
+        cid: result.cid,
+        ipfsUrl: result.url,
+      };
+  
+      const existingArtworks = JSON.parse(localStorage.getItem("artworks") || "[]");
+      existingArtworks.push(artwork);
+      localStorage.setItem("artworks", JSON.stringify(existingArtworks));
+  
+      setNotification({
+        message: `🎉 Artwork saved and NFT minted! Token ID: ${tokenId}`,
+        type: "success",
+      });
+    } catch (err) {
+      console.error("❌ Failed:", err);
+      setNotification({
+        message: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+        type: "error",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
   return (
     <div className="min-h-screen">
       <Navbar />
       <main className="py-8">
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Create Your <span className="text-orange-400">Art</span></h1>
+            <h1 className="text-3xl font-bold mb-2">
+              Create Your <span className="text-orange-400">Art</span>
+            </h1>
             <p className="text-muted-foreground">Express yourself through digital art and share your creations</p>
           </div>
 
@@ -244,7 +354,7 @@ export default function DrawPage() {
                       >
                         <Eraser className="w-5 h-5 mb-1" />
                         <span className="text-xs">Eraser</span>
-                      </button>       
+                      </button>
                       <button
                         type="button"
                         className="flex flex-col items-center justify-center p-3 rounded-lg bg-[#dad4d42a] hover:bg-slate-100"
@@ -402,7 +512,7 @@ export default function DrawPage() {
                 </div>
                 <div className="flex flex-col gap-2 min-w-[150px]">
                   <label htmlFor="drawingPrice" className="text-sm font-medium text-gray-700">
-                    Price ($)
+                    Price (ETH)
                   </label>
                   <input
                     type="number"
@@ -421,7 +531,8 @@ export default function DrawPage() {
                   type="button"
                   id="saveDrawing"
                   className="flex items-center justify-center px-6 py-3 rounded-xl bg-[#7c29d3] text-white hover:bg-[#4e2f70] text-sm font-medium shadow-sm"
-                  onClick={saveDrawing}
+                  onClick={saveToGallery}
+                  disabled={isUploading}
                 >
                   <Save className="w-4 h-4 mr-2" /> Save Artwork
                 </button>
@@ -430,13 +541,18 @@ export default function DrawPage() {
                   className="flex items-center justify-center px-6 py-3 rounded-xl bg-orange-600 text-white hover:bg-orange-800 text-sm font-medium shadow-sm"
                   onClick={() => {
                     saveDrawing()
-                    setNotification({
-                      message: "Artwork uploaded to marketplace!",
-                      type: "success",
-                    })
                   }}
+                  disabled={isUploading}
                 >
-                  <ImagePlus className="w-4 h-4 mr-2" /> Upload to Marketplace
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <ImagePlus className="w-4 h-4 mr-2" /> Upload to Marketplace
+                    </>
+                  )}
                 </button>
               </div>
             </div>

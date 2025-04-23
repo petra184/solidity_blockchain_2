@@ -4,6 +4,25 @@
   "sourceName": "contracts/ArtNFT.sol",
   "abi": [
     {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "uri",
+          "type": "string"
+        }
+      ],
+      "name": "mint",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },    
+    {
       "inputs": [],
       "stateMutability": "nonpayable",
       "type": "constructor"
@@ -398,19 +417,6 @@
       ],
       "name": "listForSale",
       "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "mint",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
       "stateMutability": "nonpayable",
       "type": "function"
     },
