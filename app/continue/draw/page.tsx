@@ -7,6 +7,7 @@ import { Eraser, Trash2, Save, Paintbrush, Palette, SlidersHorizontal, ImagePlus
 import Navbar from "@/components/navbar"
 import { ethers } from "ethers"
 import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
+import { UploadedArtwork } from "@/app/types/artwork"
 
 export default function DrawPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -196,7 +197,7 @@ export default function DrawPage() {
   }
 
   // Update the saveDrawing function to better handle API responses and store Web3 data
-  const saveDrawing = async () => {
+  const saveDrawing = async (): Promise<void> => {
     if (!canvasRef.current) return;
   
     setIsUploading(true);
@@ -229,7 +230,7 @@ export default function DrawPage() {
         throw new Error(`Received non-JSON response: ${await response.text()}`);
       }
   
-      const result = await response.json();
+      const result: { cid: string; url: string; error?: string } = await response.json();
       if (!response.ok) throw new Error(result.error || "Upload failed");
   
       console.log("✅ Metadata uploaded to IPFS:", result.url);
@@ -242,33 +243,27 @@ export default function DrawPage() {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer);
   
       console.log("🖼 Minting NFT on Sepolia with metadata URL:", result.url);
-      
-      // Fix: Call mint with the URL as a string parameter
+  
       const tx = await contract.mint(result.url);
       console.log("Transaction sent:", tx.hash);
-      
+  
       const receipt = await tx.wait();
       console.log("Transaction confirmed");
   
-      // Fix: In ethers.js v6, we need to parse logs differently
-      let tokenId;
-      
-      // Find the ArtMinted event in the logs
+      let tokenId: string | undefined;
+  
       for (const log of receipt.logs) {
         try {
-          // Try to parse each log with the contract interface
           const parsedLog = contract.interface.parseLog({
             topics: log.topics,
-            data: log.data
+            data: log.data,
           });
-          
-          // Check if this is the ArtMinted event
+  
           if (parsedLog && parsedLog.name === "ArtMinted") {
             tokenId = parsedLog.args.tokenId.toString();
             break;
           }
         } catch (e) {
-          // Skip logs that can't be parsed by this contract interface
           continue;
         }
       }
@@ -278,7 +273,7 @@ export default function DrawPage() {
       console.log("✅ NFT Minted! Token ID:", tokenId);
   
       // Save artwork locally with chain + IPFS info
-      const artwork = {
+      const artwork: UploadedArtwork = {
         id: `artwork-${Date.now()}`,
         tokenId: Number(tokenId),
         name: drawingName || "Untitled Artwork",
@@ -291,7 +286,7 @@ export default function DrawPage() {
         ipfsUrl: result.url,
       };
   
-      const existingArtworks = JSON.parse(localStorage.getItem("artworks") || "[]");
+      const existingArtworks: UploadedArtwork[] = JSON.parse(localStorage.getItem("artworks") || "[]");
       existingArtworks.push(artwork);
       localStorage.setItem("artworks", JSON.stringify(existingArtworks));
   
@@ -308,7 +303,7 @@ export default function DrawPage() {
     } finally {
       setIsUploading(false);
     }
-  };
+  };  
   
   return (
     <div className="min-h-screen">

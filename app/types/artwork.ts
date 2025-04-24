@@ -1,14 +1,18 @@
 export interface Artwork {
-  id: string
-  name: string
-  dataURL: string
-  date: string
-  category: string
-  price: number
-  forSale: boolean
-  // Add Web3 storage specific fields
-  cid?: string
-  ipfsUrl?: string
+  id: string;
+  name: string;
+  dataURL: string;
+  date: string;
+  category: string;
+  price: number;
+  forSale: boolean;
+  // Web3 storage specific fields
+  cid?: string;
+  ipfsUrl?: string;
+}
+
+export interface UploadedArtwork extends Artwork {
+  tokenId: number;
 }
 
 export interface Web3StorageFile {

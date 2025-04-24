@@ -6,8 +6,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "MetaMask Authentication",
-  description: "Sign in with your MetaMask wallet",
+  title: "ArtCanvas Marketplace",
+  description: "A decentralized marketplace for digital art",
 }
 
 export default function RootLayout({

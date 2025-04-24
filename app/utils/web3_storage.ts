@@ -27,7 +27,7 @@ export async function isAuthenticated() {
   }
 }
 
-export async function authenticateWithEmail(email?: string) {
+export async function authenticateWithEmail() {
   try {
     const client = await getClient()
     const userEmail = "juric.petra18@gmail.com"

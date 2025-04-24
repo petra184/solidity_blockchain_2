@@ -19,6 +19,7 @@ export default function Gallery() {
   const [notification, setNotification] = useState({ message: "", type: "success" as "success" | "error" })
   const [isLoading, setIsLoading] = useState(true)
 
+
   // Load artworks from both localStorage and Web3 storage
   useEffect(() => {
     async function loadArtworks() {
@@ -120,22 +121,6 @@ export default function Gallery() {
   const closeModal = () => {
     setIsModalOpen(false)
     setSelectedArtwork(null)
-  }
-
-  const downloadArtwork = () => {
-    if (!selectedArtwork) return
-
-    // If we have a local dataURL, use that
-    if (selectedArtwork.dataURL) {
-      const link = document.createElement("a")
-      link.download = `${selectedArtwork.name}.png`
-      link.href = selectedArtwork.dataURL
-      link.click()
-    }
-    // Otherwise, if we have an IPFS URL, open it in a new tab
-    else if (selectedArtwork.ipfsUrl) {
-      window.open(selectedArtwork.ipfsUrl, "_blank")
-    }
   }
 
   const deleteArtwork = () => {
@@ -261,7 +246,7 @@ export default function Gallery() {
             <div className="flex justify-center items-center py-20">
               <div className="flex flex-col items-center gap-4">
                 <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                <p className="text-muted-foreground">Loading your artwork from IPFS...</p>
+                <p className="text-muted-foreground">Loading your artwork from Web Storage...</p>
               </div>
             </div>
           ) : (
@@ -298,7 +283,7 @@ export default function Gallery() {
                         Category: {artwork.category.charAt(0).toUpperCase() + artwork.category.slice(1)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Price: {artwork.price > 0 ? `${artwork.price.toFixed(2)} ETH` : "Not for sale"}
+                        Price: {artwork.price > 0 ? `${artwork.price} ETH` : "Not for sale"}
                       </p>
                       {artwork.cid && (
                         <p className="text-xs text-muted-foreground mt-2 truncate">
@@ -350,7 +335,7 @@ export default function Gallery() {
                 Category: {selectedArtwork.category.charAt(0).toUpperCase() + selectedArtwork.category.slice(1)}
               </p>
               <p className="text-sm text-muted-foreground mb-2">
-                Price: {selectedArtwork.price > 0 ? `${selectedArtwork.price.toFixed(2)} ETH` : "Not for sale"}
+                Price: {selectedArtwork.price > 0 ? `${selectedArtwork.price} ETH` : "Not for sale"}
               </p>
               {selectedArtwork.cid && (
                 <p className="text-sm text-muted-foreground mb-6">
@@ -377,35 +362,32 @@ export default function Gallery() {
                     <Edit className="w-4 h-4 mr-2" /> Continue Editing
                   </button>
                 )}
-                <button
+                  {selectedArtwork.forSale ? (
+                    <button
+                    className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
+                    onClick={deleteArtwork}
+                  >
+                    <Trash className="w-4 h-4 mr-2" /> {selectedArtwork.ipfsUrl ? "Remove" : "Delete"}
+                  </button>
+                  ) : (
+                    <>
+                    <button
                   className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md font-medium"
                   onClick={sellArtwork}
                   disabled={selectedArtwork.forSale}
                 >
-                  {selectedArtwork.forSale ? (
-                    `Listed for ${selectedArtwork.price.toFixed(2)} ETH`
-                  ) : (
-                    <>
-                      <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
+                  <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
+                </button>
+                      
+                    <button
+                      className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
+                      onClick={deleteArtwork}
+                    >
+                      <Trash className="w-4 h-4 mr-2" /> {selectedArtwork.ipfsUrl ? "Remove" : "Delete"}
+                    </button>
                     </>
+                    
                   )}
-                </button>
-                {selectedArtwork.ipfsUrl && (
-                  <a
-                    href={selectedArtwork.ipfsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center bg-blue-600 text-white hover:bg-blue-700 justify-center px-5 py-2.5 rounded-md font-medium"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" /> View on IPFS
-                  </a>
-                )}
-                <button
-                  className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
-                  onClick={deleteArtwork}
-                >
-                  <Trash className="w-4 h-4 mr-2" /> {selectedArtwork.ipfsUrl ? "Remove" : "Delete"}
-                </button>
               </div>
             </div>
           </div>
