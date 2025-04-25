@@ -28,7 +28,7 @@ export default function DrawPage() {
   const [tool, setTool] = useState<"brush" | "eraser" | "line" | "circle" | "rectangle">("brush")
   const [isUploading, setIsUploading] = useState(false)
 
-  const CONTRACT_ADDRESS = "0xBc84172d0f92F244202906622B1757C66FAB82E3"
+  const CONTRACT_ADDRESS = "0x453A81c3Bd8e5396987981399625D94BBC1fe47E"
 
 
   // Predefined color palette
@@ -196,7 +196,6 @@ export default function DrawPage() {
     })
   }
 
-  // Update the saveDrawing function to better handle API responses and store Web3 data
   const saveDrawing = async (): Promise<void> => {
     if (!canvasRef.current) return;
   
@@ -219,7 +218,7 @@ export default function DrawPage() {
       formData.append("category", category);
       formData.append("price", price);
   
-      // Upload to /api/upload to IPFS
+      // Upload to IPFS via /api/upload
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -233,49 +232,39 @@ export default function DrawPage() {
       const result: { cid: string; url: string; error?: string } = await response.json();
       if (!response.ok) throw new Error(result.error || "Upload failed");
   
-      console.log("✅ Metadata uploaded to IPFS:", result.url);
+      console.log("Metadata uploaded to IPFS:", result.url);
   
-      // MINT ON-CHAIN with IPFS metadata URL
+      // MINT on-chain
       if (!window.ethereum) throw new Error("No wallet found");
   
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer);
   
-      console.log("🖼 Minting NFT on Sepolia with metadata URL:", result.url);
-  
+      console.log("Minting NFT on Sepolia with metadata URL:", result.url);
       const tx = await contract.mint(result.url);
       console.log("Transaction sent:", tx.hash);
   
       const receipt = await tx.wait();
       console.log("Transaction confirmed");
   
-      let tokenId: string | undefined;
+      // Get latest tokenId from totalSupply
+      const totalSupply = await contract.totalSupply();
+      const tokenId = Number(totalSupply) - 1;
   
-      for (const log of receipt.logs) {
-        try {
-          const parsedLog = contract.interface.parseLog({
-            topics: log.topics,
-            data: log.data,
-          });
-  
-          if (parsedLog && parsedLog.name === "ArtMinted") {
-            tokenId = parsedLog.args.tokenId.toString();
-            break;
-          }
-        } catch (e) {
-          continue;
-        }
+      console.log("NFT Minted! Token ID:", tokenId);
+
+      if (Number(price) > 0) {
+        const priceInWei = ethers.parseEther(price); 
+        const tx2 = await contract.listForSale(tokenId, priceInWei);
+        await tx2.wait();
+        console.log("Listed for sale at", price, "ETH");
       }
-  
-      if (tokenId === undefined) throw new Error("Failed to get tokenId from transaction.");
-  
-      console.log("✅ NFT Minted! Token ID:", tokenId);
   
       // Save artwork locally with chain + IPFS info
       const artwork: UploadedArtwork = {
         id: `artwork-${Date.now()}`,
-        tokenId: Number(tokenId),
+        tokenId,
         name: drawingName || "Untitled Artwork",
         dataURL,
         date: new Date().toISOString(),
@@ -291,7 +280,7 @@ export default function DrawPage() {
       localStorage.setItem("artworks", JSON.stringify(existingArtworks));
   
       setNotification({
-        message: `🎉 Artwork saved and NFT minted! Token ID: ${tokenId}`,
+        message: `Artwork saved and NFT minted! Token ID: ${tokenId}\nListed for sale for ${price} ETH`,
         type: "success",
       });
     } catch (err) {
@@ -303,7 +292,8 @@ export default function DrawPage() {
     } finally {
       setIsUploading(false);
     }
-  };  
+  };
+  
   
   return (
     <div className="min-h-screen">

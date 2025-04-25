@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Notification from "@/components/notification"
-import type { Artwork, Web3StorageFile } from "@/app/types/artwork"
-import { Tag, Trash, ImageIcon, Search, Edit, ExternalLink, Loader2 } from "lucide-react"
+import type { Artwork } from "@/app/types/artwork"
+import { Tag, Trash, ImageIcon, Search, Edit, Loader2 } from "lucide-react"
 import Navbar from "@/components/navbar"
 
 export default function Gallery() {
@@ -24,54 +24,48 @@ export default function Gallery() {
   useEffect(() => {
     async function loadArtworks() {
       setIsLoading(true)
+
       try {
-        // Load from localStorage first
+        // Load artworks from localStorage
         const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]") as Artwork[]
 
-        // Then fetch from Web3 storage
+        // Fetch artworks from Web3 storage API
         const response = await fetch("/api/get-images")
-
+        console.log("Response from Web3 storage:", response)
         if (!response.ok) {
-          throw new Error("Failed to fetch images from Web3 storage")
+        throw new Error("Failed to fetch images from Web3 storage")
         }
 
-        const web3Images = (await response.json()) as Web3StorageFile[]
+        const web3Artworks = (await response.json()) as Artwork[]
 
-        // Merge the two sources, avoiding duplicates
-        // This assumes that Web3 images have a unique CID
+        // Merge without duplicates (by cid if present, otherwise id)
         const mergedArtworks = [...storedArtworks]
 
-        // Add Web3 images that aren't already in localStorage
-        web3Images.forEach((web3Image) => {
-          // Check if this image is already in localStorage
-          const exists = storedArtworks.some((artwork) => artwork.cid === web3Image.cid)
+        web3Artworks.forEach((web3Artwork) => {
+          const exists = storedArtworks.some(
+            (artwork) =>
+              (artwork.cid && artwork.cid === web3Artwork.cid) ||
+              (!artwork.cid && artwork.id === web3Artwork.id)
+          )
 
           if (!exists) {
-            mergedArtworks.push({
-              id: web3Image.cid,
-              name: web3Image.name || 'Untitled Artwork",e || "Untitled Artwork',
-              dataURL: "", // No local data URL
-              ipfsUrl: web3Image.url,
-              cid: web3Image.cid,
-              date: web3Image.created || new Date().toISOString(),
-              category: "digital-painting", // Default category
-              price: 0,
-              forSale: false,
-            })
+            mergedArtworks.push(web3Artwork)
           }
         })
 
+        // Update state with merged list
         setArtworks(mergedArtworks)
         setFilteredArtworks(mergedArtworks)
       } catch (error) {
         console.error("Error loading artworks:", error)
+
         setNotification({
-          message: "Failed to load some artworks from Web3 storage",
+          message: `Failed to load some artworks from Web3 storage`,
           type: "error",
         })
 
-        // Still load from localStorage if Web3 fails
-        const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]")
+        // Fallback: load localStorage artworks only
+        const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]") as Artwork[]
         setArtworks(storedArtworks)
         setFilteredArtworks(storedArtworks)
       } finally {
@@ -80,7 +74,9 @@ export default function Gallery() {
     }
 
     loadArtworks()
-  }, [])
+  }, [setArtworks, setFilteredArtworks, setIsLoading, setNotification])
+
+  
 
   // Filter and sort artworks when search or sort changes
   useEffect(() => {
@@ -203,7 +199,7 @@ export default function Gallery() {
         <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-7xl">
           <div className="text-center mb-10">
             <h1 className="text-3xl md:text-4xl font-bold mb-3">Your Artwork Gallery</h1>
-            <p className="text-muted-foreground text-lg">Browse your collection from local storage and IPFS</p>
+            <p className="text-muted-foreground text-lg">Here you can see the Art you've already uploaded to the Marketplace, and the art you've decided to keep private</p>
           </div>
 
           <div className="flex flex-col md:flex-row justify-between items-stretch md:items-end gap-6 mb-10 rounded-lg">
@@ -260,12 +256,12 @@ export default function Gallery() {
                   >
                     <div className="relative aspect-square">
                       <img
-                        src={artwork.ipfsUrl || artwork.dataURL || "/placeholder.svg"}
+                        src={artwork.dataURL || "/placeholder.png"}
                         alt={artwork.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           // Fallback if image fails to load
-                          e.currentTarget.src = "/placeholder.svg"
+                          e.currentTarget.src = "/placeholder.png"
                         }}
                       />
                       {artwork.ipfsUrl && (
@@ -285,11 +281,6 @@ export default function Gallery() {
                       <p className="text-xs text-muted-foreground">
                         Price: {artwork.price > 0 ? `${artwork.price} ETH` : "Not for sale"}
                       </p>
-                      {artwork.cid && (
-                        <p className="text-xs text-muted-foreground mt-2 truncate">
-                          CID: {artwork.cid.substring(0, 10)}...
-                        </p>
-                      )}
                     </div>
                   </div>
                 ))
@@ -344,12 +335,12 @@ export default function Gallery() {
               )}
               <div className="rounded-lg overflow-hidden shadow-md mb-8">
                 <img
-                  src={selectedArtwork.ipfsUrl || selectedArtwork.dataURL || "/placeholder.svg"}
+                  src={selectedArtwork.dataURL || "/placeholder.png"}
                   alt={selectedArtwork.name}
                   className="w-full h-auto"
                   onError={(e) => {
                     // Fallback if image fails to load
-                    e.currentTarget.src = "/placeholder.svg"
+                    e.currentTarget.src = "/placeholder.png"
                   }}
                 />
               </div>

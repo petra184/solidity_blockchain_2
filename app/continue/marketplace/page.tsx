@@ -7,7 +7,7 @@ import { ShoppingBag, PaintbrushIcon as PaintBrush, Search, ShoppingCart } from 
 import { fetchOnChainArtworks, buyArtwork } from "@/app/utils/get_art"
 import Navbar from "@/components/navbar"
 import Notification from "@/components/notification"
-import { Artwork } from "@/app/types/artwork"
+import type { Artwork, UploadedArtwork } from "@/app/types/artwork"
 
 export default function Marketplace() {
   const [marketplaceItems, setMarketplaceItems] = useState<Artwork[]>([])
@@ -19,11 +19,8 @@ export default function Marketplace() {
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [isPurchasing, setIsPurchasing] = useState(false)
   const [notification, setNotification] = useState({ message: "", type: "success" as "success" | "error" })
-
-  // Load marketplace items from blockchain
-  // const [isLoading, setIsLoading] = useState(true) // Removed duplicate declaration
+  const [isBuying, setIsBuying] = useState(false)
 
   useEffect(() => {
     const loadArtworks = async () => {
@@ -32,12 +29,12 @@ export default function Marketplace() {
         const onChainArtworks = await fetchOnChainArtworks()
 
         // Map the blockchain artworks to your Artwork type format
-        const formattedArtworks = onChainArtworks.map((art) => ({
+        const formattedArtworks: UploadedArtwork[] = onChainArtworks.map((art) => ({
           id: art.tokenId.toString(),
           name: art.name,
           dataURL: art.dataURL,
           category: art.category,
-          price: art.price,
+          price: Number.parseFloat(String(art.price)),
           forSale: art.forSale,
           ipfsUrl: art.ipfsUrl,
           tokenId: art.tokenId,
@@ -133,6 +130,7 @@ export default function Marketplace() {
     if (!selectedArtwork) return
 
     try {
+      setIsBuying(true)
       setNotification({ message: "", type: "success" })
 
       // Check if MetaMask is installed
@@ -148,7 +146,7 @@ export default function Marketplace() {
       await window.ethereum.request({ method: "eth_requestAccounts" })
 
       // Execute purchase
-      const result = await buyArtwork(parseFloat(selectedArtwork.id), selectedArtwork.price)
+      const result = await buyArtwork(Number.parseFloat(selectedArtwork.id), selectedArtwork.price)
 
       if (result.success) {
         setNotification({
@@ -158,11 +156,11 @@ export default function Marketplace() {
 
         // Refresh artwork list
         const updatedArtworks = await fetchOnChainArtworks()
-        const formattedArtworks = updatedArtworks.map((art) => ({
+        const formattedArtworks: UploadedArtwork[] = updatedArtworks.map((art) => ({
           id: art.tokenId.toString(),
           name: art.name,
           category: art.category,
-          price: parseFloat(String(art.price)),
+          price: Number.parseFloat(String(art.price)),
           dataURL: art.dataURL,
           forSale: art.forSale,
           date: art.date,
@@ -184,6 +182,8 @@ export default function Marketplace() {
         message: error instanceof Error ? error.message : "Unknown error occurred",
         type: "error",
       })
+    } finally {
+      setIsBuying(false)
     }
   }
 
@@ -227,7 +227,7 @@ export default function Marketplace() {
               onClick={() => setCategoryFilter("digital-painting")}
             >
               <div className="relative aspect-[4/3] overflow-hidden">
-              <Image
+                <Image
                   src="/images/digital.jpg"
                   alt="Digital Painting"
                   width={400}
@@ -328,6 +328,8 @@ export default function Marketplace() {
                 <option value="abstract">Abstract</option>
                 <option value="illustration">Illustration</option>
                 <option value="pixel-art">Pixel Art</option>
+                <option value="landscape">Landscape</option>
+                <option value="portrait">Portrait</option>
               </select>
             </div>
             <div className="flex flex-col gap-1">
@@ -383,12 +385,12 @@ export default function Marketplace() {
                   <div className="relative aspect-square overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={artwork.dataURL || "/placeholder.svg"}
+                      src={artwork.dataURL || "/placeholder.png"}
                       alt={artwork.name}
                       className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                       onError={(e) => {
                         // Fallback if IPFS image fails to load
-                        e.currentTarget.src = "/placeholder.svg"
+                        e.currentTarget.src = "/placeholder.png"
                       }}
                     />
                   </div>
@@ -471,21 +473,31 @@ export default function Marketplace() {
               <div className="rounded-lg overflow-hidden shadow-md mb-6">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={selectedArtwork.dataURL || "/placeholder.svg?height=400&width=400"}
+                  src={selectedArtwork.dataURL || "/placeholder.png?height=400&width=400"}
                   alt={selectedArtwork.name}
                   className="w-full h-auto"
                   onError={(e) => {
                     // Fallback if IPFS image fails to load
-                    e.currentTarget.src = "/placeholder.svg?height=400&width=400"
+                    e.currentTarget.src = "/placeholder.png?height=400&width=400"
                   }}
                 />
               </div>
               <div className="flex justify-center">
                 <button
-                  className="flex items-center justify-center px-6 py-2 bg-purple-700 text-white rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-base font-medium"
+                  className="flex items-center justify-center px-6 py-2 bg-purple-700 text-white rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-base font-medium disabled:opacity-70"
                   onClick={handleBuyArtwork}
+                  disabled={isBuying}
                 >
-                  <ShoppingCart className="w-5 h-5 mr-2" /> Buy Now
+                  {isBuying ? (
+                    <>
+                      <div className="w-5 h-5 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-5 h-5 mr-2" /> Buy Now
+                    </>
+                  )}
                 </button>
               </div>
               <p className="text-xs text-center mt-4 text-muted-foreground">
