@@ -1,35 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ArtNFT is ERC721, Ownable {
+contract ArtNFT is ERC721URIStorage, Ownable {
     uint256 public nextTokenId;
     mapping(uint256 => uint256) public prices;
     mapping(address => uint256) public earnings;
-    mapping(uint256 => string) private _tokenURIs;
 
     constructor() ERC721("ArtNFT", "ART") Ownable(msg.sender) {}
 
-    event ArtMinted(address indexed creator, uint256 tokenId);
+    event ArtMinted(address indexed creator, uint256 tokenId, string tokenURI);
     event ArtSold(address indexed buyer, uint256 tokenId, uint256 price);
 
-    function mint(string memory uri) external returns (uint256) {
+    function mint(string memory tokenUri) external returns (uint256) {
         uint256 tokenId = nextTokenId;
         _mint(msg.sender, tokenId);
-        _tokenURIs[tokenId] = uri;
+        _setTokenURI(tokenId, tokenUri);
         nextTokenId++;
-        emit ArtMinted(msg.sender, tokenId);
+        emit ArtMinted(msg.sender, tokenId, tokenUri);
         return tokenId;
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        return _tokenURIs[tokenId];
-    }
-
     function listForSale(uint256 tokenId, uint256 price) external {
-        require(ownerOf(tokenId) == msg.sender, "Not your art");
+        require(ownerOf(tokenId) == msg.sender, "Not your token");
         prices[tokenId] = price;
     }
 
@@ -37,11 +32,11 @@ contract ArtNFT is ERC721, Ownable {
         uint256 price = prices[tokenId];
         address seller = ownerOf(tokenId);
         require(price > 0, "Not for sale");
-        require(msg.value >= price, "Not enough ETH");
+        require(msg.value >= price, "Insufficient ETH");
 
         _transfer(seller, msg.sender, tokenId);
-        earnings[seller] += msg.value;
         prices[tokenId] = 0;
+        earnings[seller] += msg.value;
 
         emit ArtSold(msg.sender, tokenId, price);
     }
