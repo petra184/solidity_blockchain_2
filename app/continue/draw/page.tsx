@@ -8,6 +8,8 @@ import Navbar from "@/components/navbar"
 import { ethers } from "ethers"
 import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
 import { UploadedArtwork } from "@/app/types/artwork"
+import { useSearchParams } from "next/navigation"
+
 
 export default function DrawPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -27,6 +29,9 @@ export default function DrawPage() {
   const [showBrushSettings, setShowBrushSettings] = useState(false)
   const [tool, setTool] = useState<"brush" | "eraser" | "line" | "circle" | "rectangle">("brush")
   const [isUploading, setIsUploading] = useState(false)
+  const searchParams = useSearchParams();
+  const isEditing = searchParams.get("edit") === "true";
+
 
   const CONTRACT_ADDRESS = "0x453A81c3Bd8e5396987981399625D94BBC1fe47E"
 
@@ -50,7 +55,6 @@ export default function DrawPage() {
     "#f59e0b",
   ]
 
-  // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -64,25 +68,27 @@ export default function DrawPage() {
       canvas.height = 600;
   
       const context = canvas.getContext("2d");
-      if (!context) return;
+      if (context) {
+        context.fillStyle = "white";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        setCtx(context);
   
-      // Save context for drawing (IMPORTANT!!)
-      setCtx(context);
+        // 👉 Only try to load saved artwork if editing
+        if (isEditing) {
+          const storedArtwork = localStorage.getItem("artworkToEdit");
+          if (storedArtwork) {
+            const artwork = JSON.parse(storedArtwork);
+            const image = new Image();
+            image.src = artwork.dataURL;
   
-      // Fill background with white
-      context.fillStyle = "white";
-      context.fillRect(0, 0, canvas.width, canvas.height);
+            image.onload = () => {
+              context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            };
   
-      // Try loading saved artwork
-      const storedArtwork = localStorage.getItem("artworkToEdit");
-      if (storedArtwork) {
-        const artwork = JSON.parse(storedArtwork);
-  
-        const image = new Image();
-        image.src = artwork.dataURL;
-        image.onload = () => {
-          context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        };
+            if (artwork.name) setDrawingName(artwork.name);
+            if (artwork.category) setCategory(artwork.category);
+          }
+        }
       }
     };
   
@@ -92,9 +98,10 @@ export default function DrawPage() {
     return () => {
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, []);
+  }, [isEditing]);
   
   
+
   // Drawing functions
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     setIsDrawing(true)
@@ -204,6 +211,9 @@ export default function DrawPage() {
     // Save to localStorage
     localStorage.setItem("artworks", JSON.stringify(existingArtworks))
 
+    // 👉 Clear the editing artwork after saving
+    localStorage.removeItem("artworkToEdit");
+
     setNotification({
       message: `"${name}" saved to gallery successfully!`,
       type: "success",
@@ -297,6 +307,9 @@ export default function DrawPage() {
         message: `Artwork saved and NFT minted! Token ID: ${tokenId}\nListed for sale for ${price} ETH`,
         type: "success",
       });
+
+      localStorage.removeItem("artworkToEdit");
+
     } catch (err) {
       console.error("❌ Failed:", err);
       setNotification({
