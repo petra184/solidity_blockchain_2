@@ -3,7 +3,7 @@ import axios from "axios"
 import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
 import { UploadedArtwork } from "@/app/types/artwork"  
 
-const CONTRACT_ADDRESS = "0x453A81c3Bd8e5396987981399625D94BBC1fe47E" // replace with your actual one
+const CONTRACT_ADDRESS = " 0x1a5c0F03E06b502376A9196aC247a0977284FD2f" // replace with your actual one
 
 const provider = new ethers.JsonRpcProvider(`https://sepolia.infura.io/v3/68706c3269f648478c50f00661141a86`)
 const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, provider)
