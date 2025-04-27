@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ShoppingBag, PaintbrushIcon as PaintBrush, Search, ShoppingCart } from "lucide-react"
+import { ShoppingBag, PaintbrushIcon as PaintBrush, Search, ShoppingCart, CheckCircle } from "lucide-react"
 import { fetchOnChainArtworks, buyArtwork } from "@/app/utils/get_art"
 import Navbar from "@/components/navbar"
 import Notification from "@/components/notification"
@@ -146,7 +146,7 @@ export default function Marketplace() {
       await window.ethereum.request({ method: "eth_requestAccounts" })
 
       // Execute purchase
-      const result = await buyArtwork(Number.parseFloat(selectedArtwork.id), selectedArtwork.price)
+      const result = await buyArtwork(Number.parseFloat(selectedArtwork.id), Number(selectedArtwork.price))
 
       if (result.success) {
         setNotification({
@@ -393,6 +393,11 @@ export default function Marketplace() {
                         e.currentTarget.src = "/placeholder.png"
                       }}
                     />
+                    {artwork.price === 0 && (
+                      <div className="absolute top-2 right-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">
+                        Sold
+                      </div>
+                    )}
                   </div>
                   <div className="p-5 flex-grow flex flex-col">
                     <h3 className="text-base font-semibold truncate mb-1">{artwork.name}</h3>
@@ -403,20 +408,28 @@ export default function Marketplace() {
                       A beautiful piece of {artwork.category.toLowerCase()} art.
                     </div>
                     <div className="flex justify-between items-center mt-auto">
-                      <div className="text-base font-bold text-primary">{artwork.price.toFixed(4)} ETH</div>
+                      <div className="text-base font-bold text-primary">
+                        {artwork.price === 0 ? "Sold" : `${artwork.price} ETH`}
+                      </div>
                       <div className="text-xs text-muted-foreground">Token #{artwork.id}</div>
                     </div>
                   </div>
                   <div className="px-5 pb-5 pt-0">
-                    <button
-                      className="w-full flex items-center justify-center rounded-xl px-4 py-2 text-white bg-purple-700 text-primary-foreground hover:opacity-90 text-sm font-medium"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openModal(artwork)
-                      }}
-                    >
-                      <ShoppingCart className="w-4 h-4 mr-2" /> Buy Now
-                    </button>
+                    {artwork.price === 0 ? (
+                      <div className="w-full flex items-center justify-center rounded-xl px-4 py-2 text-white bg-emerald-600 text-primary-foreground text-sm font-medium">
+                        <CheckCircle className="w-4 h-4 mr-2" /> Art Already Bought
+                      </div>
+                    ) : (
+                      <button
+                        className="w-full flex items-center justify-center rounded-xl px-4 py-2 text-white bg-purple-700 text-primary-foreground hover:opacity-90 text-sm font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openModal(artwork)
+                        }}
+                      >
+                        <ShoppingCart className="w-4 h-4 mr-2" /> Buy Now
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -469,7 +482,9 @@ export default function Marketplace() {
                   selectedArtwork.category.slice(1).replace(/-/g, " ")}
               </p>
               <p className="text-sm text-muted-foreground mb-1">Token ID: {selectedArtwork.id}</p>
-              <p className="text-sm text-muted-foreground mb-4">Price: {selectedArtwork.price.toFixed(4)} ETH</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Price: {selectedArtwork.price === 0 ? "Sold" : `${selectedArtwork.price} ETH`}
+              </p>
               <div className="rounded-lg overflow-hidden shadow-md mb-6">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -483,25 +498,33 @@ export default function Marketplace() {
                 />
               </div>
               <div className="flex justify-center">
-                <button
-                  className="flex items-center justify-center px-6 py-2 bg-purple-700 text-white rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-base font-medium disabled:opacity-70"
-                  onClick={handleBuyArtwork}
-                  disabled={isBuying}
-                >
-                  {isBuying ? (
-                    <>
-                      <div className="w-5 h-5 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-5 h-5 mr-2" /> Buy Now
-                    </>
-                  )}
-                </button>
+                {selectedArtwork.price === 0 ? (
+                  <div className="flex items-center justify-center px-6 py-2 bg-emerald-600 text-white rounded-xl text-base font-medium">
+                    <CheckCircle className="w-5 h-5 mr-2" /> Art Already Bought
+                  </div>
+                ) : (
+                  <button
+                    className="flex items-center justify-center px-6 py-2 bg-purple-700 text-white rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-base font-medium disabled:opacity-70"
+                    onClick={handleBuyArtwork}
+                    disabled={isBuying}
+                  >
+                    {isBuying ? (
+                      <>
+                        <div className="w-5 h-5 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-5 h-5 mr-2" /> Buy Now
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
               <p className="text-xs text-center mt-4 text-muted-foreground">
-                Purchasing this NFT will require a transaction on the Sepolia testnet
+                {selectedArtwork.price === 0
+                  ? "This artwork has already been purchased"
+                  : "Purchasing this NFT will require a transaction on the Sepolia testnet"}
               </p>
             </div>
           </div>

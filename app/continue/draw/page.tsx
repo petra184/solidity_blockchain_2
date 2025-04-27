@@ -7,7 +7,8 @@ import { Eraser, Trash2, Save, Paintbrush, Palette, SlidersHorizontal, ImagePlus
 import Navbar from "@/components/navbar"
 import { ethers } from "ethers"
 import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
-import { UploadedArtwork } from "@/app/types/artwork"
+import type { UploadedArtwork } from "@/app/types/artwork"
+import { useSearchParams } from "next/navigation"
 
 export default function DrawPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -27,9 +28,11 @@ export default function DrawPage() {
   const [showBrushSettings, setShowBrushSettings] = useState(false)
   const [tool, setTool] = useState<"brush" | "eraser" | "line" | "circle" | "rectangle">("brush")
   const [isUploading, setIsUploading] = useState(false)
+  const searchParams = useSearchParams()
+  const isEditing = searchParams.get("edit") === "true"
+  const [originalArtworkId, setOriginalArtworkId] = useState<string | null>(null)
 
   const CONTRACT_ADDRESS = "0x453A81c3Bd8e5396987981399625D94BBC1fe47E"
-
 
   // Predefined color palette
   const colorPalette = [
@@ -50,12 +53,10 @@ export default function DrawPage() {
     "#f59e0b",
   ]
 
-  // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // Set canvas size
     const resizeCanvas = () => {
       const container = canvas.parentElement
       if (!container) return
@@ -64,12 +65,29 @@ export default function DrawPage() {
       canvas.width = width
       canvas.height = 600
 
-      // Fill with white background
       const context = canvas.getContext("2d")
       if (context) {
         context.fillStyle = "white"
         context.fillRect(0, 0, canvas.width, canvas.height)
         setCtx(context)
+
+        // 👉 Only try to load saved artwork if editing
+        if (isEditing) {
+          const storedArtwork = localStorage.getItem("artworkToEdit")
+          if (storedArtwork) {
+            const artwork = JSON.parse(storedArtwork)
+            const image = new Image()
+            image.src = artwork.dataURL
+
+            image.onload = () => {
+              context.drawImage(image, 0, 0, canvas.width, canvas.height)
+            }
+
+            if (artwork.name) setDrawingName(artwork.name)
+            if (artwork.category) setCategory(artwork.category)
+            if (artwork.id) setOriginalArtworkId(artwork.id)
+          }
+        }
       }
     }
 
@@ -79,7 +97,7 @@ export default function DrawPage() {
     return () => {
       window.removeEventListener("resize", resizeCanvas)
     }
-  }, [])
+  }, [isEditing])
 
   // Drawing functions
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -184,83 +202,102 @@ export default function DrawPage() {
     // Get existing artworks from localStorage
     const existingArtworks = JSON.parse(localStorage.getItem("artworks") || "[]")
 
-    // Add new artwork
-    existingArtworks.push(artwork)
+    // If we're editing, remove the original artwork
+    if (isEditing && originalArtworkId) {
+      const filteredArtworks = existingArtworks.filter((art: any) => art.id !== originalArtworkId)
 
-    // Save to localStorage
-    localStorage.setItem("artworks", JSON.stringify(existingArtworks))
+      // Add new artwork
+      filteredArtworks.push(artwork)
 
-    setNotification({
-      message: `"${name}" saved to gallery successfully!`,
-      type: "success",
-    })
+      // Save to localStorage
+      localStorage.setItem("artworks", JSON.stringify(filteredArtworks))
+
+      setNotification({
+        message: `"${name}" updated and saved to gallery successfully!`,
+        type: "success",
+      })
+    } else {
+      // Add new artwork
+      existingArtworks.push(artwork)
+
+      // Save to localStorage
+      localStorage.setItem("artworks", JSON.stringify(existingArtworks))
+
+      setNotification({
+        message: `"${name}" saved to gallery successfully!`,
+        type: "success",
+      })
+    }
+
+    // Clear the artworkToEdit from localStorage
+    if (isEditing) {
+      localStorage.removeItem("artworkToEdit")
+    }
   }
 
   const saveDrawing = async (): Promise<void> => {
-    if (!canvasRef.current) return;
-  
-    setIsUploading(true);
-    setNotification({ message: "", type: "success" });
-  
+    if (!canvasRef.current) return
+
+    setIsUploading(true)
+    setNotification({ message: "", type: "success" })
+
     try {
       // Convert canvas to image blob
-      const canvas = canvasRef.current;
-      const blob: Blob | null = await new Promise((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/png")
-      );
-      if (!blob) throw new Error("Failed to export drawing.");
-      const dataURL = canvas.toDataURL("image/png");
-  
+      const canvas = canvasRef.current
+      const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"))
+      if (!blob) throw new Error("Failed to export drawing.")
+      const dataURL = canvas.toDataURL("image/png")
+
       // Prepare upload form
-      const formData = new FormData();
-      formData.append("file", blob, drawingName ? `${drawingName}.png` : "drawing.png");
-      formData.append("name", drawingName || "Untitled Artwork");
-      formData.append("category", category);
-      formData.append("price", price);
-  
+      const formData = new FormData()
+      formData.append("file", blob, drawingName ? `${drawingName}.png` : "drawing.png")
+      formData.append("name", drawingName || "Untitled Artwork")
+      formData.append("category", category)
+      formData.append("price", price)
+
       // Upload to IPFS via /api/upload
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
-      });
-  
-      const contentType = response.headers.get("content-type");
+      })
+
+      const contentType = response.headers.get("content-type")
       if (!contentType || !contentType.includes("application/json")) {
-        throw new Error(`Received non-JSON response: ${await response.text()}`);
+        throw new Error(`Received non-JSON response: ${await response.text()}`)
       }
-  
-      const result: { cid: string; url: string; error?: string } = await response.json();
-      if (!response.ok) throw new Error(result.error || "Upload failed");
-  
-      console.log("Metadata uploaded to IPFS:", result.url);
-  
+
+      const result: { cid: string; url: string; error?: string } = await response.json()
+      if (!response.ok) throw new Error(result.error || "Upload failed")
+
+      console.log("Metadata uploaded to IPFS:", result.url)
+
       // MINT on-chain
-      if (!window.ethereum) throw new Error("No wallet found");
-  
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer);
-  
-      console.log("Minting NFT on Sepolia with metadata URL:", result.url);
-      const tx = await contract.mint(result.url);
-      console.log("Transaction sent:", tx.hash);
-  
-      const receipt = await tx.wait();
-      console.log("Transaction confirmed");
-  
+      if (!window.ethereum) throw new Error("No wallet found")
+
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer)
+
+      console.log("Minting NFT on Sepolia with metadata URL:", result.url)
+      const tx = await contract.mint(result.url)
+      console.log("Transaction sent:", tx.hash)
+
+      const receipt = await tx.wait()
+      console.log("Transaction confirmed")
+
       // Get latest tokenId from totalSupply
-      const totalSupply = await contract.totalSupply();
-      const tokenId = Number(totalSupply) - 1;
-  
-      console.log("NFT Minted! Token ID:", tokenId);
+      const totalSupply = await contract.totalSupply()
+      const tokenId = Number(totalSupply) - 1
+
+      console.log("NFT Minted! Token ID:", tokenId)
 
       if (Number(price) > 0) {
-        const priceInWei = ethers.parseEther(price); 
-        const tx2 = await contract.listForSale(tokenId, priceInWei);
-        await tx2.wait();
-        console.log("Listed for sale at", price, "ETH");
+        const priceInWei = ethers.parseEther(price)
+        const tx2 = await contract.listForSale(tokenId, priceInWei)
+        await tx2.wait()
+        console.log("Listed for sale at", price, "ETH")
       }
-  
+
       // Save artwork locally with chain + IPFS info
       const artwork: UploadedArtwork = {
         id: `artwork-${Date.now()}`,
@@ -273,28 +310,41 @@ export default function DrawPage() {
         forSale: Number.parseFloat(price) > 0,
         cid: result.cid,
         ipfsUrl: result.url,
-      };
-  
-      const existingArtworks: UploadedArtwork[] = JSON.parse(localStorage.getItem("artworks") || "[]");
-      existingArtworks.push(artwork);
-      localStorage.setItem("artworks", JSON.stringify(existingArtworks));
-  
+      }
+
+      // Get existing artworks from localStorage
+      const existingArtworks: UploadedArtwork[] = JSON.parse(localStorage.getItem("artworks") || "[]")
+
+      // If we're editing, remove the original artwork
+      if (isEditing && originalArtworkId) {
+        const filteredArtworks = existingArtworks.filter((art) => art.id !== originalArtworkId)
+        filteredArtworks.push(artwork)
+        localStorage.setItem("artworks", JSON.stringify(filteredArtworks))
+      } else {
+        existingArtworks.push(artwork)
+        localStorage.setItem("artworks", JSON.stringify(existingArtworks))
+      }
+
+      // Clear the artworkToEdit from localStorage
+      if (isEditing) {
+        localStorage.removeItem("artworkToEdit")
+      }
+
       setNotification({
         message: `Artwork saved and NFT minted! Token ID: ${tokenId}\nListed for sale for ${price} ETH`,
         type: "success",
-      });
+      })
     } catch (err) {
-      console.error("❌ Failed:", err);
+      console.error("❌ Failed:", err)
       setNotification({
         message: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
         type: "error",
-      });
+      })
     } finally {
-      setIsUploading(false);
+      setIsUploading(false)
     }
-  };
-  
-  
+  }
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -302,7 +352,8 @@ export default function DrawPage() {
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">
-              Create Your <span className="text-orange-400">Art</span>
+              {isEditing ? "Edit Your " : "Create Your "}
+              <span className="text-orange-400">Art</span>
             </h1>
             <p className="text-muted-foreground">Express yourself through digital art and share your creations</p>
           </div>
@@ -519,7 +570,7 @@ export default function DrawPage() {
                   onClick={saveToGallery}
                   disabled={isUploading}
                 >
-                  <Save className="w-4 h-4 mr-2" /> Save Artwork
+                  <Save className="w-4 h-4 mr-2" /> {isEditing ? "Update Artwork" : "Save Artwork"}
                 </button>
                 <button
                   type="button"

@@ -7,6 +7,8 @@ import Notification from "@/components/notification"
 import type { Artwork } from "@/app/types/artwork"
 import { Tag, Trash, ImageIcon, Search, Edit, Loader2 } from "lucide-react"
 import Navbar from "@/components/navbar"
+import { ethers } from "ethers"
+import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
 
 export default function Gallery() {
   const router = useRouter()
@@ -18,7 +20,9 @@ export default function Gallery() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [notification, setNotification] = useState({ message: "", type: "success" as "success" | "error" })
   const [isLoading, setIsLoading] = useState(true)
+  const [artworkType, setArtworkType] = useState("all")
 
+  const CONTRACT_ADDRESS = "0x453A81c3Bd8e5396987981399625D94BBC1fe47E"
 
   // Load artworks from both localStorage and Web3 storage
   useEffect(() => {
@@ -30,10 +34,10 @@ export default function Gallery() {
         const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]") as Artwork[]
 
         // Fetch artworks from Web3 storage API
-        const response = await fetch("/api/get-images")
+        const response = await fetch("/api/get-image")
         console.log("Response from Web3 storage:", response)
         if (!response.ok) {
-        throw new Error("Failed to fetch images from Web3 storage")
+          throw new Error("Failed to fetch images from Web3 storage")
         }
 
         const web3Artworks = (await response.json()) as Artwork[]
@@ -44,8 +48,7 @@ export default function Gallery() {
         web3Artworks.forEach((web3Artwork) => {
           const exists = storedArtworks.some(
             (artwork) =>
-              (artwork.cid && artwork.cid === web3Artwork.cid) ||
-              (!artwork.cid && artwork.id === web3Artwork.id)
+              (artwork.cid && artwork.cid === web3Artwork.cid) || (!artwork.cid && artwork.id === web3Artwork.id),
           )
 
           if (!exists) {
@@ -53,9 +56,17 @@ export default function Gallery() {
           }
         })
 
+        // Ensure all artworks have a unique ID
+        const artworksWithUniqueIds = mergedArtworks.map((artwork, index) => {
+          if (!artwork.id) {
+            return { ...artwork, id: `artwork-${index}-${Date.now()}` }
+          }
+          return artwork
+        })
+
         // Update state with merged list
-        setArtworks(mergedArtworks)
-        setFilteredArtworks(mergedArtworks)
+        setArtworks(artworksWithUniqueIds)
+        setFilteredArtworks(artworksWithUniqueIds)
       } catch (error) {
         console.error("Error loading artworks:", error)
 
@@ -66,8 +77,17 @@ export default function Gallery() {
 
         // Fallback: load localStorage artworks only
         const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]") as Artwork[]
-        setArtworks(storedArtworks)
-        setFilteredArtworks(storedArtworks)
+
+        // Ensure all artworks have a unique ID
+        const artworksWithUniqueIds = storedArtworks.map((artwork, index) => {
+          if (!artwork.id) {
+            return { ...artwork, id: `artwork-${index}-${Date.now()}` }
+          }
+          return artwork
+        })
+
+        setArtworks(artworksWithUniqueIds)
+        setFilteredArtworks(artworksWithUniqueIds)
       } finally {
         setIsLoading(false)
       }
@@ -76,15 +96,25 @@ export default function Gallery() {
     loadArtworks()
   }, [setArtworks, setFilteredArtworks, setIsLoading, setNotification])
 
-  
-
-  // Filter and sort artworks when search or sort changes
+  // Filter and sort artworks when search, sort, or artwork type changes
   useEffect(() => {
     let filtered = [...artworks]
 
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter((artwork) => artwork.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    }
+
+    // Filter by artwork type
+    if (artworkType !== "all") {
+      filtered = filtered.filter((artwork) => {
+        if (artworkType === "created") {
+          return !artwork.purchased
+        } else if (artworkType === "purchased") {
+          return artwork.purchased
+        }
+        return true
+      })
     }
 
     // Sort artworks
@@ -107,7 +137,7 @@ export default function Gallery() {
     }
 
     setFilteredArtworks(filtered)
-  }, [searchTerm, sortBy, artworks])
+  }, [searchTerm, sortBy, artworkType, artworks])
 
   const openArtworkModal = (artwork: Artwork) => {
     setSelectedArtwork(artwork)
@@ -137,7 +167,7 @@ export default function Gallery() {
     closeModal()
   }
 
-  const sellArtwork = () => {
+  const sellArtwork = async () => {
     if (!selectedArtwork) return
 
     const price = prompt("Enter the price for your artwork (ETH):", "0.1")
@@ -152,24 +182,44 @@ export default function Gallery() {
       return
     }
 
-    // Update artwork with price and forSale flag
-    const updatedArtworks = artworks.map((a) => {
-      if (a.id === selectedArtwork.id) {
-        return { ...a, forSale: true, price: priceValue }
+    try {
+      if (!window.ethereum) throw new Error("No crypto wallet found")
+
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer)
+
+      if (!selectedArtwork.cid) {
+        throw new Error("Artwork does not have a valid CID for listing.")
       }
-      return a
-    })
 
-    // Only update localStorage for local artworks
-    localStorage.setItem("artworks", JSON.stringify(updatedArtworks.filter((a) => !a.ipfsUrl)))
+      // Send transaction to list the artwork
+      const tx = await contract.listArtwork(selectedArtwork.cid, ethers.parseEther(price.toString()))
+      await tx.wait()
 
-    setNotification({
-      message: "Artwork listed for sale successfully",
-      type: "success",
-    })
+      // Update local storage and state
+      const updatedArtworks = artworks.map((a) => {
+        if (a.id === selectedArtwork.id) {
+          return { ...a, forSale: true, price: priceValue }
+        }
+        return a
+      })
 
-    setArtworks(updatedArtworks)
-    closeModal()
+      localStorage.setItem("artworks", JSON.stringify(updatedArtworks.filter((a) => !a.ipfsUrl)))
+      setNotification({
+        message: "Artwork listed on the marketplace successfully!",
+        type: "success",
+      })
+
+      setArtworks(updatedArtworks)
+      closeModal()
+    } catch (err: any) {
+      console.error("Error listing artwork:", err)
+      setNotification({
+        message: `Failed to list artwork: ${err.message || err}`,
+        type: "error",
+      })
+    }
   }
 
   const editArtwork = () => {
@@ -188,7 +238,8 @@ export default function Gallery() {
     localStorage.setItem("artworkToEdit", JSON.stringify(selectedArtwork))
 
     // Navigate to the draw page
-    router.push("/continue/draw")
+    router.push("/continue/draw?edit=true")
+
     closeModal()
   }
 
@@ -199,7 +250,7 @@ export default function Gallery() {
         <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-7xl">
           <div className="text-center mb-10">
             <h1 className="text-3xl md:text-4xl font-bold mb-3">Your Artwork Gallery</h1>
-            <p className="text-muted-foreground text-lg">Here you can see the Art you've already uploaded to the Marketplace, and the art you've decided to keep private</p>
+            <p className="text-muted-foreground text-lg">Here you can see your Art and the purchased pieces</p>
           </div>
 
           <div className="flex flex-col md:flex-row justify-between items-stretch md:items-end gap-6 mb-10 rounded-lg">
@@ -218,6 +269,21 @@ export default function Gallery() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+            </div>
+            <div className="w-full md:w-auto">
+              <label htmlFor="artworkType" className="block text-sm font-medium text-muted-foreground mb-2">
+                Artwork Type:
+              </label>
+              <select
+                id="artworkType"
+                className="px-3 pr-15 bg-white py-2.5 rounded-md border border-gray-300 focus:outline-none focus:border-transparent"
+                value={artworkType}
+                onChange={(e) => setArtworkType(e.target.value)}
+              >
+                <option value="all">All Artwork</option>
+                <option value="created">My Artwork</option>
+                <option value="purchased">Purchased Artwork</option>
+              </select>
             </div>
             <div className="w-full md:w-auto">
               <label htmlFor="sortBy" className="block text-sm font-medium text-muted-foreground mb-2">
@@ -242,21 +308,21 @@ export default function Gallery() {
             <div className="flex justify-center items-center py-20">
               <div className="flex flex-col items-center gap-4">
                 <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                <p className="text-muted-foreground">Loading your artwork from Web Storage...</p>
+                <p className="text-muted-foreground">Loading your artwork...</p>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
               {filteredArtworks.length > 0 ? (
-                filteredArtworks.map((artwork) => (
+                filteredArtworks.map((artwork, index) => (
                   <div
-                    key={artwork.id}
+                    key={artwork.id || `artwork-${index}-${Date.now()}`}
                     className="rounded-lg overflow-hidden bg-slate-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
                     onClick={() => openArtworkModal(artwork)}
                   >
                     <div className="relative aspect-square">
                       <img
-                        src={artwork.dataURL || "/placeholder.png"}
+                        src={artwork.dataURL || artwork.image || "/placeholder.png"}
                         alt={artwork.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -264,11 +330,14 @@ export default function Gallery() {
                           e.currentTarget.src = "/placeholder.png"
                         }}
                       />
-                      {artwork.ipfsUrl && (
-                        <div className="absolute top-2 right-2 bg-primary text-white text-xs px-2 py-1 rounded-full">
-                          IPFS
-                        </div>
-                      )}
+                      <div className="absolute top-2 right-2 flex flex-col gap-1">
+                        {artwork.ipfsUrl && (
+                          <div className="bg-primary text-white text-xs px-2 py-1 rounded-full">IPFS</div>
+                        )}
+                        {artwork.purchased && (
+                          <div className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">Purchased</div>
+                        )}
+                      </div>
                     </div>
                     <div className="p-5">
                       <h3 className="text-base font-semibold mb-2">{artwork.name}</h3>
@@ -328,6 +397,9 @@ export default function Gallery() {
               <p className="text-sm text-muted-foreground mb-2">
                 Price: {selectedArtwork.price > 0 ? `${selectedArtwork.price} ETH` : "Not for sale"}
               </p>
+              {selectedArtwork.purchased && (
+                <p className="text-sm text-emerald-600 font-medium mb-2">Purchased Artwork</p>
+              )}
               {selectedArtwork.cid && (
                 <p className="text-sm text-muted-foreground mb-6">
                   Stored on IPFS: <span className="font-mono text-xs">{selectedArtwork.cid}</span>
@@ -335,7 +407,7 @@ export default function Gallery() {
               )}
               <div className="rounded-lg overflow-hidden shadow-md mb-8">
                 <img
-                  src={selectedArtwork.dataURL || "/placeholder.png"}
+                  src={selectedArtwork.dataURL || selectedArtwork.image || "/placeholder.png"}
                   alt={selectedArtwork.name}
                   className="w-full h-auto"
                   onError={(e) => {
@@ -345,40 +417,41 @@ export default function Gallery() {
                 />
               </div>
               <div className="flex flex-wrap gap-4 justify-center">
-                {!selectedArtwork.ipfsUrl && (
+              {!selectedArtwork.ipfsUrl && selectedArtwork.price <= 0 && (
+                <div className="flex gap-4">
                   <button
                     className="flex items-center bg-blue-600 text-white hover:bg-blue-700 justify-center px-5 py-2.5 rounded-md font-medium"
                     onClick={editArtwork}
                   >
                     <Edit className="w-4 h-4 mr-2" /> Continue Editing
                   </button>
-                )}
-                  {selectedArtwork.forSale ? (
-                    <button
+
+                  <button
+                    className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md font-medium"
+                    onClick={sellArtwork}
+                    disabled={selectedArtwork.forSale}
+                  >
+                    <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
+                  </button>
+                </div>
+              )}
+                {selectedArtwork.forSale ? (
+                  <button
                     className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
                     onClick={deleteArtwork}
                   >
                     <Trash className="w-4 h-4 mr-2" /> {selectedArtwork.ipfsUrl ? "Remove" : "Delete"}
                   </button>
-                  ) : (
-                    <>
-                    <button
-                  className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md font-medium"
-                  onClick={sellArtwork}
-                  disabled={selectedArtwork.forSale}
-                >
-                  <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
-                </button>
-                      
+                ) : (
+                  <>
                     <button
                       className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
                       onClick={deleteArtwork}
                     >
                       <Trash className="w-4 h-4 mr-2" /> {selectedArtwork.ipfsUrl ? "Remove" : "Delete"}
                     </button>
-                    </>
-                    
-                  )}
+                  </>
+                )}
               </div>
             </div>
           </div>
