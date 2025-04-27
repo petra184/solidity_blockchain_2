@@ -52,35 +52,49 @@ export default function DrawPage() {
 
   // Initialize canvas
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    // Set canvas size
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+  
     const resizeCanvas = () => {
-      const container = canvas.parentElement
-      if (!container) return
-
-      const width = container.clientWidth
-      canvas.width = width
-      canvas.height = 600
-
-      // Fill with white background
-      const context = canvas.getContext("2d")
-      if (context) {
-        context.fillStyle = "white"
-        context.fillRect(0, 0, canvas.width, canvas.height)
-        setCtx(context)
+      const container = canvas.parentElement;
+      if (!container) return;
+  
+      const width = container.clientWidth;
+      canvas.width = width;
+      canvas.height = 600;
+  
+      const context = canvas.getContext("2d");
+      if (!context) return;
+  
+      // Save context for drawing (IMPORTANT!!)
+      setCtx(context);
+  
+      // Fill background with white
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+  
+      // Try loading saved artwork
+      const storedArtwork = localStorage.getItem("artworkToEdit");
+      if (storedArtwork) {
+        const artwork = JSON.parse(storedArtwork);
+  
+        const image = new Image();
+        image.src = artwork.dataURL;
+        image.onload = () => {
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        };
       }
-    }
-
-    resizeCanvas()
-    window.addEventListener("resize", resizeCanvas)
-
+    };
+  
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+  
     return () => {
-      window.removeEventListener("resize", resizeCanvas)
-    }
-  }, [])
-
+      window.removeEventListener("resize", resizeCanvas);
+    };
+  }, []);
+  
+  
   // Drawing functions
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     setIsDrawing(true)
