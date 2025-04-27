@@ -8,6 +8,8 @@ import Navbar from "@/components/navbar"
 import { ethers } from "ethers"
 import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
 import { UploadedArtwork } from "@/app/types/artwork"
+import { useSearchParams } from "next/navigation"
+
 
 export default function DrawPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -27,6 +29,9 @@ export default function DrawPage() {
   const [showBrushSettings, setShowBrushSettings] = useState(false)
   const [tool, setTool] = useState<"brush" | "eraser" | "line" | "circle" | "rectangle">("brush")
   const [isUploading, setIsUploading] = useState(false)
+  const searchParams = useSearchParams();
+  const isEditing = searchParams.get("edit") === "true";
+
 
   const CONTRACT_ADDRESS = "0x453A81c3Bd8e5396987981399625D94BBC1fe47E"
 
@@ -50,36 +55,50 @@ export default function DrawPage() {
     "#f59e0b",
   ]
 
-  // Initialize canvas
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    // Set canvas size
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+  
     const resizeCanvas = () => {
-      const container = canvas.parentElement
-      if (!container) return
-
-      const width = container.clientWidth
-      canvas.width = width
-      canvas.height = 600
-
-      // Fill with white background
-      const context = canvas.getContext("2d")
+      const container = canvas.parentElement;
+      if (!container) return;
+  
+      const width = container.clientWidth;
+      canvas.width = width;
+      canvas.height = 600;
+  
+      const context = canvas.getContext("2d");
       if (context) {
-        context.fillStyle = "white"
-        context.fillRect(0, 0, canvas.width, canvas.height)
-        setCtx(context)
+        context.fillStyle = "white";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        setCtx(context);
+  
+        // 👉 Only try to load saved artwork if editing
+        if (isEditing) {
+          const storedArtwork = localStorage.getItem("artworkToEdit");
+          if (storedArtwork) {
+            const artwork = JSON.parse(storedArtwork);
+            const image = new Image();
+            image.src = artwork.dataURL;
+  
+            image.onload = () => {
+              context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            };
+  
+            if (artwork.name) setDrawingName(artwork.name);
+            if (artwork.category) setCategory(artwork.category);
+          }
+        }
       }
-    }
-
-    resizeCanvas()
-    window.addEventListener("resize", resizeCanvas)
-
+    };
+  
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+  
     return () => {
-      window.removeEventListener("resize", resizeCanvas)
-    }
-  }, [])
+      window.removeEventListener("resize", resizeCanvas);
+    };
+  }, [isEditing]);
 
   // Drawing functions
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {

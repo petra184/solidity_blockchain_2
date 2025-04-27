@@ -221,7 +221,8 @@ export default function Gallery() {
     localStorage.setItem("artworkToEdit", JSON.stringify(selectedArtwork))
 
     // Navigate to the draw page
-    router.push("/continue/draw")
+    router.push("/continue/draw?edit=true")
+
     closeModal()
   }
 
