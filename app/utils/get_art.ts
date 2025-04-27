@@ -1,7 +1,7 @@
 import { ethers } from "ethers"
 import axios from "axios"
 import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
-import { Artwork, UploadedArtwork } from "@/app/types/artwork"  
+import { UploadedArtwork } from "@/app/types/artwork"  
 
 const CONTRACT_ADDRESS = "0x453A81c3Bd8e5396987981399625D94BBC1fe47E" // replace with your actual one
 
@@ -25,6 +25,11 @@ async function fetchWithRetry(url: string, retries = 3, delay = 500): Promise<an
   }
 }
 
+// ➡️ Add small sleep function here
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export async function fetchOnChainArtworks(): Promise<UploadedArtwork[]> {
   const artworks: UploadedArtwork[] = [];
 
@@ -36,15 +41,14 @@ export async function fetchOnChainArtworks(): Promise<UploadedArtwork[]> {
     try {
       const tokenURI = await contract.tokenURI(tokenId);
       const priceInWei = await contract.prices(tokenId);
-      const owner = await contract.ownerOf(tokenId);
 
       console.log(`tokenURI for tokenId ${tokenId}:`, tokenURI);
 
       const httpUri = convertIpfsToHttp(tokenURI);
-      const { data: metadata } = await fetchWithRetry(httpUri)
+      const { data: metadata } = await fetchWithRetry(httpUri);
 
       const categoryAttr = metadata.attributes?.find((a: any) => a.trait_type === "Category");
-  
+
       artworks.push({
         id: `artwork-${tokenId}`,
         tokenId,
@@ -57,6 +61,9 @@ export async function fetchOnChainArtworks(): Promise<UploadedArtwork[]> {
         cid: metadata.cid || "",
         ipfsUrl: metadata.image || "",
       });
+
+      await sleep(100); // ➡️ Delay 100ms after each token fetch
+
     } catch (err) {
       console.error(`Failed to fetch token ${tokenId}`, err);
     }
@@ -65,11 +72,8 @@ export async function fetchOnChainArtworks(): Promise<UploadedArtwork[]> {
   return artworks;
 }
 
-
-
 export async function buyArtwork(tokenId: number, price: number) {
   try {
-    // Connect with signer for transactions
     if (!window.ethereum) {
       return {
         success: false,
@@ -81,10 +85,7 @@ export async function buyArtwork(tokenId: number, price: number) {
     const signer = await provider.getSigner()
     const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer)
 
-    // Convert price to wei
     const priceInWei = ethers.parseEther(price.toString())
-
-    // Execute buy transaction
     const tx = await contract.buy(tokenId, { value: priceInWei })
     await tx.wait()
 
@@ -103,7 +104,6 @@ export async function buyArtwork(tokenId: number, price: number) {
 
 export async function listArtworkForSale(tokenId: number, price: number) {
   try {
-    // Connect with signer for transactions
     if (!window.ethereum) {
       return {
         success: false,
@@ -115,10 +115,7 @@ export async function listArtworkForSale(tokenId: number, price: number) {
     const signer = await provider.getSigner()
     const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer)
 
-    // Convert price to wei
     const priceInWei = ethers.parseEther(price.toString())
-
-    // Execute listing transaction
     const tx = await contract.listForSale(tokenId, priceInWei)
     await tx.wait()
 

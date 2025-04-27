@@ -108,46 +108,60 @@ export async function getFiles() {
       throw new Error(`Failed to ensure space: ${spaceError instanceof Error ? spaceError.message : "Unknown error"}`)
     }
 
-    // Get the current space
     const space = await client.currentSpace()
     if (!space) {
       throw new Error("No space available")
     }
 
-    // List uploads from the space
     console.log("🔍 Listing uploads from space...")
     const uploadList = await client.capability.upload.list()
-    
-    // Handle the response properly based on the w3up-client API
-    // The response is not directly an array but an object with uploads
+    console.log("Upload list:", uploadList)
+
     const files = []
-    
-    // Check if uploadList has an uploads property that's iterable
-    if (uploadList && typeof uploadList === 'object' && 'uploads' in uploadList && Array.isArray(uploadList.uploads)) {
-      for (const upload of uploadList.uploads) {
-        const cid = upload.root?.toString() || ''
-        if (cid) {
+
+    if (uploadList && typeof uploadList === 'object' && 'results' in uploadList && Array.isArray(uploadList.results)) {
+      for (const upload of uploadList.results) {
+        const cid = upload.root?.toString()
+        if (!cid) continue
+
+        try {
+          const url = `https://${cid}.ipfs.w3s.link`
+          const res = await fetch(url)
+          if (!res.ok) {
+            console.warn(`⚠️ Failed to fetch file at CID ${cid}: ${res.statusText}`)
+            continue
+          }
+
+          const contentType = res.headers.get('Content-Type') || ''
+          if (!contentType.includes('application/json')) {
+            console.warn(`⚠️ CID ${cid} is not a JSON file, skipping...`)
+            continue
+          }
+
+          const metadata = await res.json()
+          console.log("🎨 Fetched metadata:", metadata)
+
+          let imageUrl = ''
+          if (metadata.image) {
+            if (metadata.image.startsWith('ipfs://')) {
+              const extractedCID = metadata.image.replace('ipfs://', '')
+              imageUrl = `https://${extractedCID}.ipfs.w3s.link`; // ← use ipfs.io
+            } else {
+              imageUrl = metadata.image
+            }
+          }
+
           files.push({
             cid,
-            url: `https://${cid}.ipfs.w3s.link`,
-            name: upload.name || cid.substring(0, 10),
-            created: upload.created || new Date().toISOString(),
-            size: upload.size || 0,
+            url,
+            name: metadata.name || cid.substring(0, 10),
+            description: metadata.description || '',
+            image: imageUrl,
+            attributes: metadata.attributes || [],
+            created: upload.insertedAt || new Date().toISOString(),
           })
-        }
-      }
-    } else if (uploadList && typeof uploadList === 'object' && Symbol.iterator in uploadList) {
-      // If it's an iterable but not an array with uploads property
-      for (const upload of uploadList as Iterable<any>) {
-        const cid = upload.root?.toString() || ''
-        if (cid) {
-          files.push({
-            cid,
-            url: `https://${cid}.ipfs.w3s.link`,
-            name: upload.name || cid.substring(0, 10),
-            created: upload.created || new Date().toISOString(),
-            size: upload.size || 0,
-          })
+        } catch (fetchError) {
+          console.warn(`⚠️ Error fetching/parsing file at CID ${cid}:`, fetchError)
         }
       }
     } else {
@@ -161,6 +175,9 @@ export async function getFiles() {
     throw new Error(`Failed to retrieve files: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }
+
+
+
 
 // Add function to get a specific file by CID
 export async function getFileByCid(cid: string) {

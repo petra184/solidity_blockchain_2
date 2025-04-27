@@ -41,6 +41,30 @@ contract ArtNFT is ERC721URIStorage, Ownable {
         emit ArtSold(msg.sender, tokenId, price);
     }
 
+    //new buy function:
+    function buy(uint256 tokenId) external payable {
+        uint256 price = prices[tokenId];
+        address seller = ownerOf(tokenId);
+        
+        require(price > 0, "Not for sale");
+        require(msg.value >= price, "Insufficient ETH");
+        
+        // Transfer the NFT to the buyer
+        _transfer(seller, msg.sender, tokenId);
+        
+        // Mark the price as zero (no longer for sale)
+        prices[tokenId] = 0;
+
+        // Mark the artwork as purchased
+        purchased[tokenId] = true;
+
+        // Transfer the earnings to the seller
+        earnings[seller] += msg.value;
+
+        // Emit the ArtSold event
+        emit ArtSold(msg.sender, tokenId, price);
+    }
+
     function withdraw() external {
         uint256 amount = earnings[msg.sender];
         require(amount > 0, "No earnings");

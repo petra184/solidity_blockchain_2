@@ -146,7 +146,7 @@ export default function Marketplace() {
       await window.ethereum.request({ method: "eth_requestAccounts" })
 
       // Execute purchase
-      const result = await buyArtwork(Number.parseFloat(selectedArtwork.id), selectedArtwork.price)
+      const result = await buyArtwork(Number.parseFloat(selectedArtwork.id), Number(selectedArtwork.price))
 
       if (result.success) {
         setNotification({
