@@ -7,7 +7,7 @@ import Notification from "@/components/notification"
 import type { Artwork } from "@/app/types/artwork"
 import { Tag, Trash, ImageIcon, Search, Edit, Loader2 } from "lucide-react"
 import Navbar from "@/components/navbar"
-import { ethers } from "ethers"; 
+import { ethers } from "ethers"
 import ArtNFT from "@/frontend/src/abi/ArtNFT.json"
 
 export default function Gallery() {
@@ -56,9 +56,17 @@ export default function Gallery() {
           }
         })
 
+        // Ensure all artworks have a unique ID
+        const artworksWithUniqueIds = mergedArtworks.map((artwork, index) => {
+          if (!artwork.id) {
+            return { ...artwork, id: `artwork-${index}-${Date.now()}` }
+          }
+          return artwork
+        })
+
         // Update state with merged list
-        setArtworks(mergedArtworks)
-        setFilteredArtworks(mergedArtworks)
+        setArtworks(artworksWithUniqueIds)
+        setFilteredArtworks(artworksWithUniqueIds)
       } catch (error) {
         console.error("Error loading artworks:", error)
 
@@ -69,8 +77,17 @@ export default function Gallery() {
 
         // Fallback: load localStorage artworks only
         const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]") as Artwork[]
-        setArtworks(storedArtworks)
-        setFilteredArtworks(storedArtworks)
+
+        // Ensure all artworks have a unique ID
+        const artworksWithUniqueIds = storedArtworks.map((artwork, index) => {
+          if (!artwork.id) {
+            return { ...artwork, id: `artwork-${index}-${Date.now()}` }
+          }
+          return artwork
+        })
+
+        setArtworks(artworksWithUniqueIds)
+        setFilteredArtworks(artworksWithUniqueIds)
       } finally {
         setIsLoading(false)
       }
@@ -151,59 +168,59 @@ export default function Gallery() {
   }
 
   const sellArtwork = async () => {
-    if (!selectedArtwork) return;
+    if (!selectedArtwork) return
 
-    const price = prompt("Enter the price for your artwork (ETH):", "0.1");
-    if (price === null) return;
+    const price = prompt("Enter the price for your artwork (ETH):", "0.1")
+    if (price === null) return
 
-    const priceValue = Number.parseFloat(price);
+    const priceValue = Number.parseFloat(price)
     if (isNaN(priceValue) || priceValue <= 0) {
       setNotification({
         message: "Please enter a valid price",
         type: "error",
-      });
-      return;
+      })
+      return
     }
 
     try {
-      if (!window.ethereum) throw new Error("No crypto wallet found");
+      if (!window.ethereum) throw new Error("No crypto wallet found")
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer);
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, ArtNFT.abi, signer)
 
       if (!selectedArtwork.cid) {
-        throw new Error("Artwork does not have a valid CID for listing.");
+        throw new Error("Artwork does not have a valid CID for listing.")
       }
 
       // Send transaction to list the artwork
-      const tx = await contract.listArtwork(selectedArtwork.cid, ethers.parseEther(price.toString()));
-      await tx.wait();
+      const tx = await contract.listArtwork(selectedArtwork.cid, ethers.parseEther(price.toString()))
+      await tx.wait()
 
       // Update local storage and state
       const updatedArtworks = artworks.map((a) => {
         if (a.id === selectedArtwork.id) {
-          return { ...a, forSale: true, price: priceValue };
+          return { ...a, forSale: true, price: priceValue }
         }
-        return a;
-      });
+        return a
+      })
 
-      localStorage.setItem("artworks", JSON.stringify(updatedArtworks.filter((a) => !a.ipfsUrl)));
+      localStorage.setItem("artworks", JSON.stringify(updatedArtworks.filter((a) => !a.ipfsUrl)))
       setNotification({
         message: "Artwork listed on the marketplace successfully!",
         type: "success",
-      });
+      })
 
-      setArtworks(updatedArtworks);
-      closeModal();
+      setArtworks(updatedArtworks)
+      closeModal()
     } catch (err: any) {
-      console.error("Error listing artwork:", err);
+      console.error("Error listing artwork:", err)
       setNotification({
         message: `Failed to list artwork: ${err.message || err}`,
         type: "error",
-      });
+      })
     }
-  };
+  }
 
   const editArtwork = () => {
     if (!selectedArtwork) return
@@ -221,7 +238,8 @@ export default function Gallery() {
     localStorage.setItem("artworkToEdit", JSON.stringify(selectedArtwork))
 
     // Navigate to the draw page
-    router.push("/continue/draw")
+    router.push("/continue/draw?edit=true")
+
     closeModal()
   }
 
@@ -262,6 +280,7 @@ export default function Gallery() {
                 value={artworkType}
                 onChange={(e) => setArtworkType(e.target.value)}
               >
+                <option value="all">All Artwork</option>
                 <option value="created">My Artwork</option>
                 <option value="purchased">Purchased Artwork</option>
               </select>
@@ -295,9 +314,9 @@ export default function Gallery() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
               {filteredArtworks.length > 0 ? (
-                filteredArtworks.map((artwork) => (
+                filteredArtworks.map((artwork, index) => (
                   <div
-                    key={artwork.id}
+                    key={artwork.id || `artwork-${index}-${Date.now()}`}
                     className="rounded-lg overflow-hidden bg-slate-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
                     onClick={() => openArtworkModal(artwork)}
                   >
@@ -388,7 +407,7 @@ export default function Gallery() {
               )}
               <div className="rounded-lg overflow-hidden shadow-md mb-8">
                 <img
-                  src={selectedArtwork.dataURL || selectedArtwork.image  || "/placeholder.png"}
+                  src={selectedArtwork.dataURL || selectedArtwork.image || "/placeholder.png"}
                   alt={selectedArtwork.name}
                   className="w-full h-auto"
                   onError={(e) => {
@@ -398,14 +417,24 @@ export default function Gallery() {
                 />
               </div>
               <div className="flex flex-wrap gap-4 justify-center">
-                {!selectedArtwork.ipfsUrl && (
+              {!selectedArtwork.ipfsUrl && selectedArtwork.price <= 0 && (
+                <div className="flex gap-4">
                   <button
                     className="flex items-center bg-blue-600 text-white hover:bg-blue-700 justify-center px-5 py-2.5 rounded-md font-medium"
                     onClick={editArtwork}
                   >
                     <Edit className="w-4 h-4 mr-2" /> Continue Editing
                   </button>
-                )}
+
+                  <button
+                    className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md font-medium"
+                    onClick={sellArtwork}
+                    disabled={selectedArtwork.forSale}
+                  >
+                    <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
+                  </button>
+                </div>
+              )}
                 {selectedArtwork.forSale ? (
                   <button
                     className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
@@ -415,14 +444,6 @@ export default function Gallery() {
                   </button>
                 ) : (
                   <>
-                    <button
-                      className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md font-medium"
-                      onClick={sellArtwork}
-                      disabled={selectedArtwork.forSale}
-                    >
-                      <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
-                    </button>
-
                     <button
                       className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
                       onClick={deleteArtwork}

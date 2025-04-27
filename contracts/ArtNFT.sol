@@ -8,11 +8,14 @@ contract ArtNFT is ERC721URIStorage, Ownable {
     uint256 public nextTokenId;
     mapping(uint256 => uint256) public prices;
     mapping(address => uint256) public earnings;
+    mapping(uint256 => bool) public purchased;
 
     constructor() ERC721("ArtNFT", "ART") Ownable(msg.sender) {}
 
     event ArtMinted(address indexed creator, uint256 tokenId, string tokenURI);
     event ArtSold(address indexed buyer, uint256 tokenId, uint256 price);
+    event ArtListed(address indexed seller, uint256 tokenId, uint256 price); 
+
 
     function mint(string memory tokenUri) external returns (uint256) {
         uint256 tokenId = nextTokenId;
@@ -25,40 +28,36 @@ contract ArtNFT is ERC721URIStorage, Ownable {
 
     function listForSale(uint256 tokenId, uint256 price) external {
         require(ownerOf(tokenId) == msg.sender, "Not your token");
+        require(!purchased[tokenId], "Token already sold");
         prices[tokenId] = price;
+        emit ArtListed(msg.sender, tokenId, price);
+    }
+
+    function mintAndList(string memory tokenUri, uint256 price) external returns (uint256) {
+        uint256 tokenId = nextTokenId;
+        _mint(msg.sender, tokenId);
+        _setTokenURI(tokenId, tokenUri);
+        nextTokenId++;
+        if (price > 0) {
+            prices[tokenId] = price;
+            emit ArtListed(msg.sender, tokenId, price);
+        }
+        emit ArtMinted(msg.sender, tokenId, tokenUri);
+        return tokenId;
     }
 
     function buy(uint256 tokenId) external payable {
         uint256 price = prices[tokenId];
         address seller = ownerOf(tokenId);
-        require(price > 0, "Not for sale");
-        require(msg.value >= price, "Insufficient ETH");
-
-        _transfer(seller, msg.sender, tokenId);
-        prices[tokenId] = 0;
-        earnings[seller] += msg.value;
-
-        emit ArtSold(msg.sender, tokenId, price);
-    }
-
-    //new buy function:
-    function buy(uint256 tokenId) external payable {
-        uint256 price = prices[tokenId];
-        address seller = ownerOf(tokenId);
         
         require(price > 0, "Not for sale");
         require(msg.value >= price, "Insufficient ETH");
         
-        // Transfer the NFT to the buyer
         _transfer(seller, msg.sender, tokenId);
         
-        // Mark the price as zero (no longer for sale)
         prices[tokenId] = 0;
-
-        // Mark the artwork as purchased
         purchased[tokenId] = true;
 
-        // Transfer the earnings to the seller
         earnings[seller] += msg.value;
 
         // Emit the ArtSold event
