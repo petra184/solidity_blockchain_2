@@ -125,7 +125,48 @@ export default function Marketplace() {
     setSelectedArtwork(null)
   }
 
-  // Add a handleBuyArtwork function
+  // Save purchased artwork to gallery
+  const savePurchasedArtworkToGallery = (artwork: Artwork) => {
+    try {
+      // Get existing artworks from localStorage
+      const existingArtworks = JSON.parse(localStorage.getItem("artworks") || "[]")
+
+      // Check if this artwork is already in the gallery
+      const alreadyExists = existingArtworks.some(
+        (art: any) =>
+          art.id === artwork.id ||
+          (art.tokenId && artwork.id && art.tokenId.toString() === artwork.id.toString()),
+      )
+
+      if (!alreadyExists) {
+        // Format the artwork for gallery storage
+        const galleryArtwork = {
+          id: `purchased-${artwork.id}-${Date.now()}`,
+          name: artwork.name,
+          dataURL: artwork.dataURL,
+          category: artwork.category,
+          price: artwork.price,
+          date: new Date().toISOString(),
+          purchased: true, // Set the purchased flag to true
+          tokenId: artwork.id,
+          ipfsUrl: artwork.ipfsUrl,
+          forSale: false, // Mark as not for sale since it's now owned
+        }
+
+        // Add to localStorage
+        existingArtworks.push(galleryArtwork)
+        localStorage.setItem("artworks", JSON.stringify(existingArtworks))
+
+        console.log("Artwork saved to gallery with purchased flag:", galleryArtwork)
+        return true
+      }
+    } catch (error) {
+      console.error("Error saving purchased artwork to gallery:", error)
+    }
+    return false
+  }
+
+  // Handle buying artwork
   const handleBuyArtwork = async () => {
     if (!selectedArtwork) return
 
@@ -144,13 +185,16 @@ export default function Marketplace() {
 
       // Request account access
       await window.ethereum.request({ method: "eth_requestAccounts" })
-
-      // Execute purchase
-      const result = await buyArtwork(Number.parseFloat(selectedArtwork.id), Number(selectedArtwork.price))
+      
+      // Execute purchase with the contract function (only passing tokenId and price)
+      const result = await buyArtwork(Number.parseFloat(selectedArtwork.id), Number(parseFloat(String(selectedArtwork.price))))
 
       if (result.success) {
+        // After successful purchase, manually save the artwork to gallery with purchased flag
+        const saved = savePurchasedArtworkToGallery(selectedArtwork)
+
         setNotification({
-          message: `You've successfully purchased "${selectedArtwork.name}"`,
+          message: `You've successfully purchased "${selectedArtwork.name}" and it's been added to your gallery`,
           type: "success",
         })
 
@@ -160,10 +204,10 @@ export default function Marketplace() {
           id: art.tokenId.toString(),
           name: art.name,
           category: art.category,
-          price: Number.parseFloat(String(art.price)),
+          price: Number(art.price),
           dataURL: art.dataURL,
           forSale: art.forSale,
-          date: art.date,
+          date: new Date(art.date).toISOString(),
           ipfsUrl: art.ipfsUrl,
           tokenId: art.tokenId,
         }))

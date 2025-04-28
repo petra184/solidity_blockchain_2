@@ -15,7 +15,7 @@ export default function Gallery() {
   const [artworks, setArtworks] = useState<Artwork[]>([])
   const [filteredArtworks, setFilteredArtworks] = useState<Artwork[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState("newest")
+  const [sortBy, setSortBy] = useState("name")
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [notification, setNotification] = useState({ message: "", type: "success" as "success" | "error" })
@@ -42,13 +42,17 @@ export default function Gallery() {
 
         const web3Artworks = (await response.json()) as Artwork[]
 
-        // Merge without duplicates (by cid if present, otherwise id)
+        // Merge without duplicates (by tokenId if present, otherwise by cid or id)
         const mergedArtworks = [...storedArtworks]
 
         web3Artworks.forEach((web3Artwork) => {
           const exists = storedArtworks.some(
             (artwork) =>
-              (artwork.cid && artwork.cid === web3Artwork.cid) || (!artwork.cid && artwork.id === web3Artwork.id),
+              (artwork.id &&
+                web3Artwork.id &&
+                artwork.id.toString() === web3Artwork.id.toString()) ||
+              (artwork.cid && artwork.cid === web3Artwork.cid) ||
+              (!artwork.cid && artwork.id === web3Artwork.id),
           )
 
           if (!exists) {
@@ -56,12 +60,32 @@ export default function Gallery() {
           }
         })
 
-        // Ensure all artworks have a unique ID
+        // Ensure all artworks have a unique ID and purchased flag is preserved
+        // Also ensure dates are in ISO format
         const artworksWithUniqueIds = mergedArtworks.map((artwork, index) => {
-          if (!artwork.id) {
-            return { ...artwork, id: `artwork-${index}-${Date.now()}` }
+          // Validate and fix date format
+          let validDate = artwork.date
+          try {
+            // Check if date is valid
+            validDate = new Date(artwork.date).toISOString()
+          } catch (e) {
+            // If date is invalid, set to current date
+            validDate = new Date().toISOString()
           }
-          return artwork
+
+          if (!artwork.id) {
+            return {
+              ...artwork,
+              id: `artwork-${index}-${Date.now()}`,
+              purchased: artwork.purchased || false,
+              date: validDate,
+            }
+          }
+          return {
+            ...artwork,
+            purchased: artwork.purchased || false,
+            date: validDate,
+          }
         })
 
         // Update state with merged list
@@ -78,12 +102,31 @@ export default function Gallery() {
         // Fallback: load localStorage artworks only
         const storedArtworks = JSON.parse(localStorage.getItem("artworks") || "[]") as Artwork[]
 
-        // Ensure all artworks have a unique ID
+        // Ensure all artworks have a unique ID and valid dates
         const artworksWithUniqueIds = storedArtworks.map((artwork, index) => {
-          if (!artwork.id) {
-            return { ...artwork, id: `artwork-${index}-${Date.now()}` }
+          // Validate and fix date format
+          let validDate = artwork.date
+          try {
+            // Check if date is valid
+            validDate = new Date(artwork.date).toISOString()
+          } catch (e) {
+            // If date is invalid, set to current date
+            validDate = new Date().toISOString()
           }
-          return artwork
+
+          if (!artwork.id) {
+            return {
+              ...artwork,
+              id: `artwork-${index}-${Date.now()}`,
+              purchased: artwork.purchased || false,
+              date: validDate,
+            }
+          }
+          return {
+            ...artwork,
+            purchased: artwork.purchased || false,
+            date: validDate,
+          }
         })
 
         setArtworks(artworksWithUniqueIds)
@@ -119,12 +162,6 @@ export default function Gallery() {
 
     // Sort artworks
     switch (sortBy) {
-      case "newest":
-        filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        break
-      case "oldest":
-        filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        break
       case "name":
         filtered.sort((a, b) => a.name.localeCompare(b.name))
         break
@@ -295,8 +332,6 @@ export default function Gallery() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
               >
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
                 <option value="name">Name</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
@@ -341,9 +376,6 @@ export default function Gallery() {
                     </div>
                     <div className="p-5">
                       <h3 className="text-base font-semibold mb-2">{artwork.name}</h3>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {new Date(artwork.date).toLocaleDateString()}
-                      </p>
                       <p className="text-xs text-muted-foreground mb-2">
                         Category: {artwork.category.charAt(0).toUpperCase() + artwork.category.slice(1)}
                       </p>
@@ -417,24 +449,24 @@ export default function Gallery() {
                 />
               </div>
               <div className="flex flex-wrap gap-4 justify-center">
-              {!selectedArtwork.ipfsUrl && selectedArtwork.price <= 0 && (
-                <div className="flex gap-4">
-                  <button
-                    className="flex items-center bg-blue-600 text-white hover:bg-blue-700 justify-center px-5 py-2.5 rounded-md font-medium"
-                    onClick={editArtwork}
-                  >
-                    <Edit className="w-4 h-4 mr-2" /> Continue Editing
-                  </button>
+                {!selectedArtwork.ipfsUrl && selectedArtwork.price <= 0 && (
+                  <div className="flex gap-4">
+                    <button
+                      className="flex items-center bg-blue-600 text-white hover:bg-blue-700 justify-center px-5 py-2.5 rounded-md font-medium"
+                      onClick={editArtwork}
+                    >
+                      <Edit className="w-4 h-4 mr-2" /> Continue Editing
+                    </button>
 
-                  <button
-                    className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md font-medium"
-                    onClick={sellArtwork}
-                    disabled={selectedArtwork.forSale}
-                  >
-                    <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
-                  </button>
-                </div>
-              )}
+                    <button
+                      className="flex items-center bg-emerald-600 text-white hover:bg-emerald-700 justify-center px-5 py-2.5 rounded-md font-medium"
+                      onClick={sellArtwork}
+                      disabled={selectedArtwork.forSale}
+                    >
+                      <Tag className="w-4 h-4 mr-2" /> Sell on Marketplace
+                    </button>
+                  </div>
+                )}
                 {selectedArtwork.forSale ? (
                   <button
                     className="flex items-center justify-center px-5 text-white py-2.5 bg-[#fc3737] rounded-md hover:opacity-90 text-sm font-medium"
