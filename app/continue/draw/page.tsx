@@ -33,7 +33,7 @@ export default function DrawPage() {
   const isEditing = searchParams.get("edit") === "true";
 
 
-  const CONTRACT_ADDRESS = "0x453A81c3Bd8e5396987981399625D94BBC1fe47E"
+  const CONTRACT_ADDRESS = "0x1a5c0F03E06b502376A9196aC247a0977284FD2f"
 
 
   // Predefined color palette
